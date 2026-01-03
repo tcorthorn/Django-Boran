@@ -31,12 +31,14 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '100.104.208.102',
+    '*',  # Permitir acceso desde sandbox
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://100.104.208.102:8001",
     "http://localhost:8001",
     "http://127.0.0.1:8001",
+    "https://*.e2b.dev",  # Permitir sandbox
 ]
 
 # Application definition

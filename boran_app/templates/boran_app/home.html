@@ -79,10 +79,11 @@
       {% csrf_token %}
       <input type="hidden" name="anno" value="{% if anno_fiscal == 2025 %}2026{% else %}2025{% endif %}">
       <button type="submit" class="btn btn-sm" 
-              style="background: #417690; color: #fff; font-weight: 600; padding: 4px 16px; border-radius: 4px;">
+              style="background: {% if anno_fiscal == 2025 %}#417690{% else %}#28a745{% endif %}; color: #fff; font-weight: 600; padding: 4px 16px; border-radius: 4px;">
         {{ anno_fiscal }}
       </button>
     </form>
+    <span style="color: #999; font-size: 0.8rem;">(clic para cambiar)</span>
   </div>
 
   {% if messages %}
