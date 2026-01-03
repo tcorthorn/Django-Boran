@@ -72,6 +72,37 @@
 <div class="container py-4">
   <h1>Panel de BORANGORA</h1>
 
+  <!-- SELECTOR DE AÑO FISCAL -->
+  <div class="card mb-4" style="border: 2px solid #417690; background: linear-gradient(135deg, #e4edf4 0%, #fff 100%);">
+    <div class="card-body py-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2">
+          <span style="font-size: 1.5rem;">📅</span>
+          <span style="font-weight: 600; color: #29495c; font-size: 1.1rem;">Año Fiscal Activo:</span>
+          <span style="font-size: 1.8rem; font-weight: 700; color: #417690;">{{ anno_fiscal }}</span>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          {% for anno in annos_disponibles %}
+            <form action="{% url 'cambiar_anno_fiscal' %}" method="post" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="anno" value="{{ anno }}">
+              <button type="submit" 
+                      class="btn {% if anno == anno_fiscal %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                      style="min-width: 100px; font-weight: 600; font-size: 1.1rem;
+                             {% if anno == anno_fiscal %}background: #417690; border-color: #417690;{% else %}color: #417690; border-color: #417690;{% endif %}">
+                {{ anno }}
+              </button>
+            </form>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="mt-2" style="font-size: 0.9rem; color: #666;">
+        <strong>Período:</strong> {{ fecha_inicio_fiscal|date:"d/m/Y" }} - {{ fecha_fin_fiscal|date:"d/m/Y" }}
+        <span class="ms-3">Todos los cálculos financieros usarán este rango de fechas.</span>
+      </div>
+    </div>
+  </div>
+
   {% if messages %}
     <div>
       {% for message in messages %}

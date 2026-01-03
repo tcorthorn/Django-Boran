@@ -6,6 +6,9 @@ from .views import home
 
 urlpatterns = [
     path('', views.home, name='home'),
+    
+    # Cambiar año fiscal
+    path('cambiar-anno-fiscal/', views.cambiar_anno_fiscal, name='cambiar_anno_fiscal'),
 
     # Importar datos Balance
     path('importar-ajuste-inventario/', views.import_ajuste_inventario, name='import_ajuste_inventario'),

@@ -3,6 +3,7 @@ from django.db.models import F, Value, TextField
 from django.db.models import F, Value, CharField, DecimalField
 from django.db.models.functions import Cast, Coalesce
 from django.db.models import Sum
+from datetime import date
 from boran_app.models import (
     OtrosGastos,
     SueldosHonorarios,
@@ -16,15 +17,51 @@ from boran_app.models import (
     ResumenCredito,
     ResumenDebito,
 )
+
+# ——————————————————————————————————————————————————————————————
+#   FUNCIONES AUXILIARES PARA AÑO FISCAL
+# ——————————————————————————————————————————————————————————————
+
+def obtener_fechas_anno_fiscal(anno_fiscal=None):
+    """
+    Devuelve las fechas de inicio y fin para un año fiscal dado.
+    Si no se proporciona año, usa el año actual.
+    """
+    if anno_fiscal is None:
+        anno_fiscal = date.today().year
+    
+    fecha_inicio = date(anno_fiscal, 1, 1)
+    fecha_fin = date(anno_fiscal, 12, 31)
+    return fecha_inicio, fecha_fin
+
+def aplicar_filtro_fechas(queryset, start_date=None, end_date=None):
+    """
+    Aplica filtros de fecha a un queryset.
+    """
+    if start_date:
+        queryset = queryset.filter(fecha__gte=start_date)
+    if end_date:
+        queryset = queryset.filter(fecha__lte=end_date)
+    return queryset
 # ——————————————————————————————————————————————————————————————
 #   VENTAS CONSULTA
 # ————————————————————————————————————————————————————————
 
-def regenerar_ventas_consulta():
+def regenerar_ventas_consulta(start_date=None, end_date=None):
+    """
+    Regenera la tabla VentasConsulta.
+    Si se proporcionan fechas, solo procesa ventas dentro del rango.
+    """
     # Borra todo antes de regenerar
     VentasConsulta.objects.all().delete()
 
     ventas = Ventas.objects.select_related('sku').all()
+    
+    # Aplicar filtro de fechas si se proporcionan
+    if start_date:
+        ventas = ventas.filter(fecha__gte=start_date)
+    if end_date:
+        ventas = ventas.filter(fecha__lte=end_date)
 
     consultas = []
 
@@ -67,15 +104,27 @@ def regenerar_ventas_consulta():
 from django.db.models import F, Value, TextField, DecimalField
 from django.db.models.functions import Cast, Coalesce
 
-def make_query(modelo, cta_field, monto_field, coment_field, tabla_origen):
+def make_query(modelo, cta_field, monto_field, coment_field, tabla_origen, start_date=None, end_date=None):
+    """
+    Genera un queryset anotado para débitos con filtros de fecha opcionales.
+    """
+    # Obtener queryset base
+    qs = modelo.objects.all()
+    
+    # Aplicar filtros de fecha si se proporcionan
+    if start_date:
+        qs = qs.filter(fecha__gte=start_date)
+    if end_date:
+        qs = qs.filter(fecha__lte=end_date)
+    
     anotaciones = {
-        # ✅ fuerza cuenta a texto para evitar varchar vs integer en UNION
+        # fuerza cuenta a texto para evitar varchar vs integer en UNION
         'cta_debito': Cast(F(cta_field), output_field=TextField()),
 
-        # ya lo estabas forzando a decimal (bien)
+        # fuerza a decimal
         'monto_debito': Cast(F(monto_field), output_field=DecimalField(max_digits=15, decimal_places=2)),
 
-        # deja tabla_origen como texto
+        # tabla_origen como texto
         'tabla_origen': Value(tabla_origen, output_field=TextField()),
     }
 
@@ -87,25 +136,29 @@ def make_query(modelo, cta_field, monto_field, coment_field, tabla_origen):
     else:
         anotaciones['texto_coment'] = Value('', output_field=TextField())
 
-    return modelo.objects.annotate(**anotaciones).values(
+    return qs.annotate(**anotaciones).values(
         'fecha', 'cta_debito', 'monto_debito', 'texto_coment', 'tabla_origen'
     )
 
 
-def poblar_movimientos_unificados_debito():
+def poblar_movimientos_unificados_debito(start_date=None, end_date=None):
+    """
+    Pobla la tabla MovimientoUnificadoDebito con datos de todas las fuentes.
+    Si se proporcionan fechas, solo procesa movimientos dentro del rango.
+    """
     # Generar cada queryset con la función auxiliar
-    qs_otros = make_query(OtrosGastos, 'cuenta_debito', 'debito', 'comentario', 'Otros Gastos')
-    qs_otros_eerr = make_query(OtrosGastos, 'cuenta_debito_eerr', 'debito_eerr', 'comentario', 'Otros Gastos (EERR)')
-    qs_sueldos = make_query(SueldosHonorarios, 'cuenta_debito', 'debito', 'comentario', 'Sueldos y Honorarios')
-    qs_asientos = make_query(AsientosContables, 'cuenta_debito', 'debito','comentario', 'Asientos Contables')
-    qs_entradas_debito = make_query(EntradaProductos, 'cuenta_debito', 'debito', 'comentario', 'Entrada de Productos')
-    qs_entradas_iva = make_query(EntradaProductos, 'cuenta_debito_iva', 'debito_iva', 'comentario', 'Entrada de Productos (IVA)')
-    qs_balance_inicial = make_query(BalanceInicial, 'cuenta_debito', 'debito', 'comentario', 'Balance Inicial')
-    qs_ventas = make_query(Ventas, 'cuenta_debito', 'debito', 'comentario', 'Ventas')
-    qs_ventas_envio = make_query(Ventas, 'cuenta_debito_envio', 'debito_envio', 'comentario', 'Ventas (EERR)')
-    qs_ventas_iva_plataformas = make_query(Ventas, 'cuenta_debito_iva_plataformas', 'debito_iva_plataformas', 'comentario', 'Ventas (Plataformas)')
-    qs_ventas_plataformas = make_query(Ventas, 'cuenta_debito_plataformas', 'debito_plataformas', 'comentario', 'Ventas (Plataformas)')
-    qs_ventas_consulta = make_query(VentasConsulta, 'cuenta_debito_eerr', 'costo_venta', 'comentario', 'Ventas Consulta')
+    qs_otros = make_query(OtrosGastos, 'cuenta_debito', 'debito', 'comentario', 'Otros Gastos', start_date, end_date)
+    qs_otros_eerr = make_query(OtrosGastos, 'cuenta_debito_eerr', 'debito_eerr', 'comentario', 'Otros Gastos (EERR)', start_date, end_date)
+    qs_sueldos = make_query(SueldosHonorarios, 'cuenta_debito', 'debito', 'comentario', 'Sueldos y Honorarios', start_date, end_date)
+    qs_asientos = make_query(AsientosContables, 'cuenta_debito', 'debito','comentario', 'Asientos Contables', start_date, end_date)
+    qs_entradas_debito = make_query(EntradaProductos, 'cuenta_debito', 'debito', 'comentario', 'Entrada de Productos', start_date, end_date)
+    qs_entradas_iva = make_query(EntradaProductos, 'cuenta_debito_iva', 'debito_iva', 'comentario', 'Entrada de Productos (IVA)', start_date, end_date)
+    qs_balance_inicial = make_query(BalanceInicial, 'cuenta_debito', 'debito', 'comentario', 'Balance Inicial', start_date, end_date)
+    qs_ventas = make_query(Ventas, 'cuenta_debito', 'debito', 'comentario', 'Ventas', start_date, end_date)
+    qs_ventas_envio = make_query(Ventas, 'cuenta_debito_envio', 'debito_envio', 'comentario', 'Ventas (EERR)', start_date, end_date)
+    qs_ventas_iva_plataformas = make_query(Ventas, 'cuenta_debito_iva_plataformas', 'debito_iva_plataformas', 'comentario', 'Ventas (Plataformas)', start_date, end_date)
+    qs_ventas_plataformas = make_query(Ventas, 'cuenta_debito_plataformas', 'debito_plataformas', 'comentario', 'Ventas (Plataformas)', start_date, end_date)
+    qs_ventas_consulta = make_query(VentasConsulta, 'cuenta_debito_eerr', 'costo_venta', 'comentario', 'Ventas Consulta', start_date, end_date)
 
     # Unión
     union_qs = qs_otros.union(
@@ -133,18 +186,30 @@ def poblar_movimientos_unificados_debito():
 from django.db.models import F, Value, TextField, DecimalField
 from django.db.models.functions import Cast, Coalesce
 
-def make_query_credito(queryset, cta_field, monto_field, coment_field, tabla_origen, usar_cast=False):
+def make_query_credito(queryset, cta_field, monto_field, coment_field, tabla_origen, usar_cast=False, start_date=None, end_date=None):
+    """
+    Genera un queryset anotado para créditos con filtros de fecha opcionales.
+    """
+    # Resolver el queryset si es necesario
+    if hasattr(queryset, 'all'):
+        qs = queryset.all()
+    else:
+        qs = queryset
+    
+    # Aplicar filtros de fecha si se proporcionan
+    if start_date:
+        qs = qs.filter(fecha__gte=start_date)
+    if end_date:
+        qs = qs.filter(fecha__lte=end_date)
+    
     anotaciones = {
         # fuerza cuenta a texto (evita varchar vs integer en UNION)
         'cta_credito': Cast(F(cta_field), output_field=TextField()),
         'tabla_origen': Value(tabla_origen, output_field=TextField()),
     }
 
-    # fuerza monto a decimal (siempre), o respeta el flag si prefieres
-    if usar_cast:
-        anotaciones['monto_credito'] = Cast(F(monto_field), output_field=DecimalField(max_digits=15, decimal_places=2))
-    else:
-        anotaciones['monto_credito'] = Cast(F(monto_field), output_field=DecimalField(max_digits=15, decimal_places=2))
+    # fuerza monto a decimal (siempre)
+    anotaciones['monto_credito'] = Cast(F(monto_field), output_field=DecimalField(max_digits=15, decimal_places=2))
 
     if coment_field:
         anotaciones['texto_coment'] = Coalesce(
@@ -154,24 +219,26 @@ def make_query_credito(queryset, cta_field, monto_field, coment_field, tabla_ori
     else:
         anotaciones['texto_coment'] = Value('', output_field=TextField())
 
-    return queryset.annotate(**anotaciones).values('fecha', 'cta_credito', 'monto_credito', 'texto_coment', 'tabla_origen')
+    return qs.annotate(**anotaciones).values('fecha', 'cta_credito', 'monto_credito', 'texto_coment', 'tabla_origen')
 
 
-def poblar_movimientos_unificados_credito():
-    qs_otros = make_query_credito(OtrosGastos.objects, 'cuenta_credito', 'credito', 'comentario', 'Otros Gastos')
-    qs_sueldos  = make_query_credito(SueldosHonorarios.objects,  'cuenta_credito', 'credito', 'comentario', 'Sueldos y Honorarios')
-    qs_sueldos_2  = make_query_credito(SueldosHonorarios.objects,  'cuenta_credito2', 'credito2', 'comentario', 'Sueldos y Honorarios (2)')
-    qs_asientos = make_query_credito(AsientosContables.objects,  'cuenta_credito', 'credito', 'comentario', 'Asientos Contables')
-    qs_entradas = make_query_credito(EntradaProductos.objects,   'cuenta_credito', 'credito',  'comentario', 'Entrada de Productos', usar_cast=True)
-    qs_entradas_gen = make_query_credito(EntradaProductos.objects,   'cuenta_credito_genero', 'credito_genero',  'comentario', 'Entrada de Productos', usar_cast=True)
-    qs_balance_inicial = make_query_credito(BalanceInicial.objects,  'cuenta_credito', 'credito', 'comentario', 'Balance Inicial')
-    qs_ventas_consulta = make_query_credito(VentasConsulta.objects,  'cuenta_credito', 'costo_venta', 'comentario', 'Ventas Consulta')
-    qs_ventas_eerr = make_query_credito(Ventas.objects.exclude(credito_eerr=0).exclude(credito_eerr__isnull=True),  'cuenta_credito_eerr', 'credito_eerr', 'comentario', 'Ventas (EERR)')
-    qs_ventas_iva = make_query_credito(Ventas.objects.exclude(credito_iva=0).exclude(credito_iva__isnull=True),  'cuenta_credito_iva', 'credito_iva', 'comentario', 'Ventas (IVA)')
-    qs_ventas_envio = make_query_credito(Ventas.objects,  'cuenta_credito_envio', 'credito_envio', 'comentario', 'Ventas (ENVIO)')
-    qs_ventas_plataformas = make_query_credito(Ventas.objects,  'cuenta_credito_plataformas', 'credito_plataformas', 'comentario', 'Ventas (Plataformas)')
-
-
+def poblar_movimientos_unificados_credito(start_date=None, end_date=None):
+    """
+    Pobla la tabla MovimientoUnificadoCredito con datos de todas las fuentes.
+    Si se proporcionan fechas, solo procesa movimientos dentro del rango.
+    """
+    qs_otros = make_query_credito(OtrosGastos.objects, 'cuenta_credito', 'credito', 'comentario', 'Otros Gastos', start_date=start_date, end_date=end_date)
+    qs_sueldos  = make_query_credito(SueldosHonorarios.objects,  'cuenta_credito', 'credito', 'comentario', 'Sueldos y Honorarios', start_date=start_date, end_date=end_date)
+    qs_sueldos_2  = make_query_credito(SueldosHonorarios.objects,  'cuenta_credito2', 'credito2', 'comentario', 'Sueldos y Honorarios (2)', start_date=start_date, end_date=end_date)
+    qs_asientos = make_query_credito(AsientosContables.objects,  'cuenta_credito', 'credito', 'comentario', 'Asientos Contables', start_date=start_date, end_date=end_date)
+    qs_entradas = make_query_credito(EntradaProductos.objects,   'cuenta_credito', 'credito',  'comentario', 'Entrada de Productos', usar_cast=True, start_date=start_date, end_date=end_date)
+    qs_entradas_gen = make_query_credito(EntradaProductos.objects,   'cuenta_credito_genero', 'credito_genero',  'comentario', 'Entrada de Productos', usar_cast=True, start_date=start_date, end_date=end_date)
+    qs_balance_inicial = make_query_credito(BalanceInicial.objects,  'cuenta_credito', 'credito', 'comentario', 'Balance Inicial', start_date=start_date, end_date=end_date)
+    qs_ventas_consulta = make_query_credito(VentasConsulta.objects,  'cuenta_credito', 'costo_venta', 'comentario', 'Ventas Consulta', start_date=start_date, end_date=end_date)
+    qs_ventas_eerr = make_query_credito(Ventas.objects.exclude(credito_eerr=0).exclude(credito_eerr__isnull=True),  'cuenta_credito_eerr', 'credito_eerr', 'comentario', 'Ventas (EERR)', start_date=start_date, end_date=end_date)
+    qs_ventas_iva = make_query_credito(Ventas.objects.exclude(credito_iva=0).exclude(credito_iva__isnull=True),  'cuenta_credito_iva', 'credito_iva', 'comentario', 'Ventas (IVA)', start_date=start_date, end_date=end_date)
+    qs_ventas_envio = make_query_credito(Ventas.objects,  'cuenta_credito_envio', 'credito_envio', 'comentario', 'Ventas (ENVIO)', start_date=start_date, end_date=end_date)
+    qs_ventas_plataformas = make_query_credito(Ventas.objects,  'cuenta_credito_plataformas', 'credito_plataformas', 'comentario', 'Ventas (Plataformas)', start_date=start_date, end_date=end_date)
 
     union_qs = qs_otros.union(qs_sueldos, qs_asientos, qs_entradas, qs_entradas_gen, qs_sueldos_2, qs_balance_inicial,
                qs_ventas_consulta,  qs_ventas_eerr,  qs_ventas_iva, qs_ventas_envio, qs_ventas_plataformas, all =True).order_by('fecha')

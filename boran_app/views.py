@@ -35,10 +35,58 @@ from django.db.models.functions import TruncMonth
 from django.shortcuts import render
 from .models import ResultadoMensualDetalle
 
+# ——————————————————————————————————————————————————————————————
+#   FUNCIÓN AUXILIAR PARA OBTENER FECHAS DEL AÑO FISCAL
+# ——————————————————————————————————————————————————————————————
+
+def obtener_fechas_anno_fiscal(request):
+    """
+    Obtiene las fechas de inicio y fin del año fiscal desde la sesión.
+    Por defecto usa el año actual si no hay año fiscal configurado.
+    Retorna: (fecha_inicio, fecha_fin, anno_fiscal)
+    """
+    anno_actual = date.today().year
+    anno_fiscal = request.session.get('anno_fiscal', anno_actual)
+    
+    fecha_inicio = date(anno_fiscal, 1, 1)
+    fecha_fin = date(anno_fiscal, 12, 31)
+    
+    return fecha_inicio, fecha_fin, anno_fiscal
+
+def regenerar_tablas_financieras(request):
+    """
+    Función auxiliar que regenera todas las tablas financieras
+    usando el año fiscal de la sesión.
+    """
+    from .utils import regenerar_ventas_consulta
+    
+    fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
+    
+    regenerar_ventas_consulta(start_date=fecha_inicio, end_date=fecha_fin)
+    poblar_movimientos_unificados_debito(start_date=fecha_inicio, end_date=fecha_fin)
+    poblar_movimientos_unificados_credito(start_date=fecha_inicio, end_date=fecha_fin)
+    regenerar_resumenes_credito_debito()
+    
+    return fecha_inicio, fecha_fin, anno_fiscal
+
 
 
 def home(request):
     return render(request, "boran_app/home.html")
+
+def cambiar_anno_fiscal(request):
+    """
+    Vista para cambiar el año fiscal activo.
+    Guarda el año seleccionado en la sesión del usuario.
+    """
+    if request.method == 'POST':
+        anno = request.POST.get('anno')
+        if anno and anno.isdigit():
+            anno_int = int(anno)
+            if anno_int in [2025, 2026]:  # Años válidos
+                request.session['anno_fiscal'] = anno_int
+                messages.success(request, f"Año fiscal cambiado a {anno_int}. Todos los cálculos ahora usarán el período 01/01/{anno_int} - 31/12/{anno_int}.")
+    return redirect('home')
 
 def listado_union_credito(request):
     total = MovimientoUnificadoCredito.objects.count()
@@ -688,17 +736,14 @@ def intdot(val):
 
 def balance_view(request):
 
-    # Ejecutar siempre los procesos previos antes de mostrar el balance
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
+    # Obtener fechas del año fiscal y regenerar tablas
+    fecha_inicio, fecha_fin, anno_fiscal = regenerar_tablas_financieras(request)
 
     debitos_dict = {d.cuenta_debito: float(d.total_debito) for d in ResumenDebito.objects.all()}
     creditos_dict = {c.cuenta_credito: float(c.total_credito) for c in ResumenCredito.objects.all()}
 
     matriz_balance = []
-    fecha_corte = date.today().strftime("%Y-%m-%d")
+    fecha_corte = f"01/01/{anno_fiscal} - 31/12/{anno_fiscal}"
     total_debito = total_credito = total_saldo_deudor = total_saldo_acreedor = 0
     total_activo = total_pasivo = total_perdidas = total_ganancias = 0
 
@@ -820,11 +865,8 @@ from django.shortcuts import render
 
 def resumen_balance_view(request):
 
-    # Ejecutar siempre los procesos previos antes de mostrar el balance
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
+    # Obtener fechas del año fiscal y regenerar tablas
+    fecha_inicio, fecha_fin, anno_fiscal = regenerar_tablas_financieras(request)
 
     # 1. Prepara los datos "matriz_dict"
     # Debe ser: {'A:1010100': 123, 'P:1010100': 0, ...}
@@ -1079,11 +1121,8 @@ import json
 from django.shortcuts import render
 
 def resumen_financiero(request):
-    # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
+    # Obtener fechas del año fiscal y regenerar tablas
+    fecha_inicio, fecha_fin, anno_fiscal = regenerar_tablas_financieras(request)
 
     matriz_dict = {}
     from .models import ResumenDebito, ResumenCredito
@@ -1324,14 +1363,13 @@ def exportar_ventasconsulta_excel(request):
 # ——————————————————————————————————————————————————————————————
 
 def resumen_mensual(request):
-    # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
+    # Obtener fechas del año fiscal y regenerar tablas
+    fecha_inicio, fecha_fin, anno_fiscal = regenerar_tablas_financieras(request)
    
+    # Filtrar por año fiscal
     qs = (
         ResumenMensual.objects
+        .filter(mes__year=anno_fiscal)
         .values('mes', 'ventas', 'costos', 'utilidad')
         .order_by('mes')
     )
@@ -1389,16 +1427,18 @@ def resumen_mensual(request):
         }
         return render(request, 'boran_app/resumen_mensual.html', contexto)
 
-    # ------- Determinar rango: empezar en ENERO correcto -------
+    # ------- Determinar rango: usar el año fiscal seleccionado -------
     months_sorted = sorted(data_by_month.keys())
-    end = months_sorted[-1]  # último mes con datos
-    current_year = date.today().year
-    has_current_year = any(m.year == current_year for m in months_sorted)
-
-    # Si hay datos del año actual, empezamos en enero del año actual.
-    # Si no, empezamos en enero del último año con datos.
-    start_year = current_year if has_current_year else end.year
-    start = date(start_year, 1, 1)
+    
+    # Usar el año fiscal de la sesión
+    start = date(anno_fiscal, 1, 1)
+    end = date(anno_fiscal, 12, 31)
+    
+    # Si hay datos, ajustar el fin al último mes con datos (pero dentro del año fiscal)
+    if months_sorted:
+        ultimo_mes_datos = months_sorted[-1]
+        if ultimo_mes_datos.year == anno_fiscal and ultimo_mes_datos < end:
+            end = ultimo_mes_datos
 
     # Si por alguna razón 'end' quedó antes que 'start' (no debería), corrige:
     if end < start:
@@ -1456,14 +1496,16 @@ CUENTAS_VENTAS = [3010101, 3010111]
 CUENTA_COSTO = [3010200, 3010201, 3010202, 3010203,3010205,3010211,3010212,3010213,3010214,3010215,3010216, 3020200,3010300,3010400,3020500,3020600,3020700,3020800,3020900,3030100]
 
 def actualizar_resumen_mensual(request):
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
+    # Obtener fechas del año fiscal y regenerar tablas
+    fecha_inicio, fecha_fin, anno_fiscal = regenerar_tablas_financieras(request)
     
     saldos_mensuales = defaultdict(lambda: defaultdict(lambda: {'debitos': 0, 'creditos': 0}))
 
-    debitos = MovimientoUnificadoDebito.objects.annotate(
+    # Filtrar débitos por año fiscal
+    debitos = MovimientoUnificadoDebito.objects.filter(
+        fecha__gte=fecha_inicio,
+        fecha__lte=fecha_fin
+    ).annotate(
         mes=TruncMonth('fecha')
     ).values('mes', 'cta_debito').annotate(total=Sum('monto_debito'))
 
@@ -1472,7 +1514,11 @@ def actualizar_resumen_mensual(request):
         cuenta = str(row['cta_debito'])
         saldos_mensuales[mes][cuenta]['debitos'] += row['total'] or 0
 
-    creditos = MovimientoUnificadoCredito.objects.annotate(
+    # Filtrar créditos por año fiscal
+    creditos = MovimientoUnificadoCredito.objects.filter(
+        fecha__gte=fecha_inicio,
+        fecha__lte=fecha_fin
+    ).annotate(
         mes=TruncMonth('fecha')
     ).values('mes', 'cta_credito').annotate(total=Sum('monto_credito'))
 
@@ -1554,14 +1600,15 @@ FILAS_CALCULADAS = [
 
 def tabla_resultados_mensual(request):
 
-     # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
+    # Obtener fechas del año fiscal y regenerar tablas
+    fecha_inicio, fecha_fin, anno_fiscal = regenerar_tablas_financieras(request)
 
-    año = date.today().year
-    mes_actual = date.today().month
+    año = anno_fiscal
+    # Si es el año actual, usar hasta el mes actual. Si no, mostrar todos los 12 meses.
+    if anno_fiscal == date.today().year:
+        mes_actual = date.today().month
+    else:
+        mes_actual = 12
 
     detalles = ResultadoMensualDetalle.objects.filter(mes__year=año)
     datos = defaultdict(lambda: defaultdict(int))
@@ -1632,13 +1679,12 @@ def actualizar_resultados_mensuales(request):
 # RESUMEN VENTAS POR TIENDAS
 # ——————————————————————————————————————————————————————————————
 
-def obtener_matriz_dict():
-
-     # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
+def obtener_matriz_dict_con_request(request):
+    """
+    Versión de obtener_matriz_dict que usa el año fiscal de la sesión.
+    """
+    # Obtener fechas del año fiscal y regenerar tablas
+    fecha_inicio, fecha_fin, anno_fiscal = regenerar_tablas_financieras(request)
 
     debitos_dict = {d.cuenta_debito: float(d.total_debito) for d in ResumenDebito.objects.all()}
     creditos_dict = {c.cuenta_credito: float(c.total_credito) for c in ResumenCredito.objects.all()}
@@ -1668,8 +1714,11 @@ TIENDAS = [
 
 @staff_member_required
 def resumen_ventas_tiendas_view(request):
-    matriz_dict = obtener_matriz_dict()
-    ventas = VentasConsulta.objects.all()
+    # Obtener fechas del año fiscal
+    fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
+    
+    matriz_dict = obtener_matriz_dict_con_request(request)
+    ventas = VentasConsulta.objects.filter(fecha__gte=fecha_inicio, fecha__lte=fecha_fin)
 
     # Inicializa datos para cada tienda
     datos_por_tienda = {}
@@ -1771,46 +1820,18 @@ def es_online(comprador):
     c = str(comprador).strip().lower()
     return c in ["shopify", "", "nan", "none"]
 
-def obtener_matriz_dict():
-
-     # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
-
-    debitos_dict = {d.cuenta_debito: float(d.total_debito) for d in ResumenDebito.objects.all()}
-    creditos_dict = {c.cuenta_credito: float(c.total_credito) for c in ResumenCredito.objects.all()}
-    matriz_dict = {}
-    for fila in balance_rows:
-        codigo = str(fila['codigo'])
-        debito = debitos_dict.get(int(codigo), 0)
-        credito = creditos_dict.get(int(codigo), 0)
-        saldo_deudor = debito - credito if debito > credito else 0
-        saldo_acreedor = credito - debito if credito > debito else 0
-        if 1010100 <= int(codigo) <= 2040000:
-            matriz_dict[f'A:{codigo}'] = saldo_deudor
-            matriz_dict[f'P:{codigo}'] = saldo_acreedor
-        elif 3010100 <= int(codigo) <= 3010300:
-            matriz_dict[f'Pe:{codigo}'] = saldo_deudor
-            matriz_dict[f'G:{codigo}'] = saldo_acreedor
-    return matriz_dict
-
-TIENDAS = [
-    {"key": "online", "nombre": "Online", "gasto_key": "Pe:3010211"},
-    {"key": "casa_moda", "nombre": "Casa Moda", "gasto_key": "Pe:3010212"},
-    {"key": "casa_aura", "nombre": "Casa Aura", "gasto_key": "Pe:3010213"},
-    {"key": "pucon", "nombre": "Pucon", "gasto_key": "Pe:3010216"},
-    {"key": "uber_eats", "nombre": "Uber Eats", "gasto_key": None},
-    {"key": "venta_manual", "nombre": "Venta Manual", "gasto_key": None},
-]
+# (La función obtener_matriz_dict fue reemplazada por obtener_matriz_dict_con_request arriba)
+# Las constantes TIENDAS están definidas más arriba en el archivo
 
 @staff_member_required
 def exportar_resumen_ventas_tiendas_excel(request):
     from django.utils import timezone
 
-    matriz_dict = obtener_matriz_dict()
-    ventas = VentasConsulta.objects.all()
+    # Obtener fechas del año fiscal
+    fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
+    
+    matriz_dict = obtener_matriz_dict_con_request(request)
+    ventas = VentasConsulta.objects.filter(fecha__gte=fecha_inicio, fecha__lte=fecha_fin)
 
     rows = []
     total_ventas = total_costo = total_gastos = total_resultado = 0
