@@ -129,6 +129,12 @@ def generar_balance_inicial_anno(request):
         
         for fila in balance_rows:
             codigo = fila['codigo']
+            
+            # SOLO cuentas de Activo (1xxxxxx) y Pasivo (2xxxxxx)
+            # NO incluir cuentas de Resultados (3xxxxxx)
+            if not (1000000 <= codigo <= 2999999):
+                continue
+            
             debito = debitos_dict.get(codigo, 0)
             credito = creditos_dict.get(codigo, 0)
             
