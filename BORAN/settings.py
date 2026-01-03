@@ -38,7 +38,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://100.104.208.102:8001",
     "http://localhost:8001",
     "http://127.0.0.1:8001",
-    "https://*.e2b.dev",  # Permitir sandbox
+    "https://*.e2b.dev",
+    "https://*.sandbox.novita.ai",  # Permitir sandbox Novita
+    "https://*.novita.ai",
 ]
 
 # Application definition
