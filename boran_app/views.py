@@ -88,6 +88,117 @@ def cambiar_anno_fiscal(request):
                 messages.success(request, f"Año fiscal cambiado a {anno_int}. Todos los cálculos ahora usarán el período 01/01/{anno_int} - 31/12/{anno_int}.")
     return redirect('home')
 
+
+def generar_balance_inicial_anno(request):
+    """
+    Genera el Balance Inicial para un año nuevo basándose en los saldos finales del año anterior.
+    Los saldos finales se calculan como: débitos - créditos para cada cuenta.
+    """
+    from .models import BalanceInicial, ResumenDebito, ResumenCredito
+    from .cod_cuentas_balance import balance_rows
+    
+    if request.method == 'POST':
+        anno_destino = int(request.POST.get('anno_destino', 2026))
+        anno_origen = anno_destino - 1
+        
+        # Verificar si ya existe balance inicial para el año destino
+        existe = BalanceInicial.objects.filter(fecha__year=anno_destino).exists()
+        if existe:
+            messages.warning(request, f"Ya existe Balance Inicial para {anno_destino}. Elimínalo primero si quieres regenerarlo.")
+            return redirect('generar_balance_inicial')
+        
+        # Regenerar tablas financieras del año origen para obtener saldos actualizados
+        fecha_inicio_origen = date(anno_origen, 1, 1)
+        fecha_fin_origen = date(anno_origen, 12, 31)
+        
+        regenerar_ventas_consulta(start_date=fecha_inicio_origen, end_date=fecha_fin_origen)
+        poblar_movimientos_unificados_debito(start_date=fecha_inicio_origen, end_date=fecha_fin_origen)
+        poblar_movimientos_unificados_credito(start_date=fecha_inicio_origen, end_date=fecha_fin_origen)
+        regenerar_resumenes_credito_debito()
+        
+        # Obtener saldos
+        debitos_dict = {d.cuenta_debito: float(d.total_debito) for d in ResumenDebito.objects.all()}
+        creditos_dict = {c.cuenta_credito: float(c.total_credito) for c in ResumenCredito.objects.all()}
+        
+        # Fecha del balance inicial del nuevo año
+        fecha_balance = date(anno_destino, 1, 1)
+        
+        # Crear registros de Balance Inicial para el nuevo año
+        nuevos_registros = []
+        cuentas_creadas = 0
+        
+        for fila in balance_rows:
+            codigo = fila['codigo']
+            debito = debitos_dict.get(codigo, 0)
+            credito = creditos_dict.get(codigo, 0)
+            
+            # Solo crear si hay saldo
+            if debito > 0 or credito > 0:
+                # Calcular saldo neto
+                saldo_deudor = max(debito - credito, 0)
+                saldo_acreedor = max(credito - debito, 0)
+                
+                # Crear registro
+                registro = BalanceInicial(
+                    fecha=fecha_balance,
+                    cuenta_debito=codigo,
+                    debito=saldo_deudor,
+                    cuenta_credito=codigo,
+                    credito=saldo_acreedor,
+                    comentario=f"Saldo inicial {anno_destino} (desde cierre {anno_origen})"
+                )
+                nuevos_registros.append(registro)
+                cuentas_creadas += 1
+        
+        # Guardar todos los registros
+        if nuevos_registros:
+            BalanceInicial.objects.bulk_create(nuevos_registros)
+            messages.success(request, f"✅ Balance Inicial {anno_destino} creado exitosamente con {cuentas_creadas} cuentas.")
+        else:
+            messages.warning(request, f"No se encontraron saldos para crear el Balance Inicial {anno_destino}.")
+        
+        return redirect('generar_balance_inicial')
+    
+    # GET: Mostrar formulario
+    # Verificar qué años tienen balance inicial
+    from django.db.models import Min, Max
+    from django.db.models.functions import ExtractYear
+    
+    annos_con_balance = list(
+        BalanceInicial.objects.annotate(anno=ExtractYear('fecha'))
+        .values_list('anno', flat=True)
+        .distinct()
+        .order_by('anno')
+    )
+    
+    # Contar registros por año
+    conteo_por_anno = {}
+    for anno in annos_con_balance:
+        conteo_por_anno[anno] = BalanceInicial.objects.filter(fecha__year=anno).count()
+    
+    return render(request, 'boran_app/generar_balance_inicial.html', {
+        'annos_con_balance': annos_con_balance,
+        'conteo_por_anno': conteo_por_anno,
+        'anno_sugerido': max(annos_con_balance) + 1 if annos_con_balance else 2025,
+    })
+
+
+def eliminar_balance_inicial_anno(request):
+    """
+    Elimina todos los registros de Balance Inicial de un año específico.
+    """
+    from .models import BalanceInicial
+    
+    if request.method == 'POST':
+        anno = int(request.POST.get('anno', 0))
+        if anno >= 2025:
+            eliminados = BalanceInicial.objects.filter(fecha__year=anno).delete()[0]
+            messages.success(request, f"✅ Se eliminaron {eliminados} registros del Balance Inicial {anno}.")
+        else:
+            messages.error(request, "Año inválido.")
+    
+    return redirect('generar_balance_inicial')
+
 def listado_union_credito(request):
     total = MovimientoUnificadoCredito.objects.count()
 

@@ -9,6 +9,10 @@ urlpatterns = [
     
     # Cambiar año fiscal
     path('cambiar-anno-fiscal/', views.cambiar_anno_fiscal, name='cambiar_anno_fiscal'),
+    
+    # Generar Balance Inicial para nuevo año
+    path('generar-balance-inicial/', views.generar_balance_inicial_anno, name='generar_balance_inicial'),
+    path('eliminar-balance-inicial/', views.eliminar_balance_inicial_anno, name='eliminar_balance_inicial_anno'),
 
     # Importar datos Balance
     path('importar-ajuste-inventario/', views.import_ajuste_inventario, name='import_ajuste_inventario'),
