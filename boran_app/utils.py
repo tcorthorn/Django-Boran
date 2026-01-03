@@ -145,7 +145,11 @@ def poblar_movimientos_unificados_debito(start_date=None, end_date=None):
     """
     Pobla la tabla MovimientoUnificadoDebito con datos de todas las fuentes.
     Si se proporcionan fechas, solo procesa movimientos dentro del rango.
+    NOTA: BalanceInicial se filtra por el año del start_date (balance de apertura del año).
     """
+    # Determinar el año para el balance inicial
+    anno_balance = start_date.year if start_date else None
+    
     # Generar cada queryset con la función auxiliar
     qs_otros = make_query(OtrosGastos, 'cuenta_debito', 'debito', 'comentario', 'Otros Gastos', start_date, end_date)
     qs_otros_eerr = make_query(OtrosGastos, 'cuenta_debito_eerr', 'debito_eerr', 'comentario', 'Otros Gastos (EERR)', start_date, end_date)
@@ -153,7 +157,12 @@ def poblar_movimientos_unificados_debito(start_date=None, end_date=None):
     qs_asientos = make_query(AsientosContables, 'cuenta_debito', 'debito','comentario', 'Asientos Contables', start_date, end_date)
     qs_entradas_debito = make_query(EntradaProductos, 'cuenta_debito', 'debito', 'comentario', 'Entrada de Productos', start_date, end_date)
     qs_entradas_iva = make_query(EntradaProductos, 'cuenta_debito_iva', 'debito_iva', 'comentario', 'Entrada de Productos (IVA)', start_date, end_date)
-    qs_balance_inicial = make_query(BalanceInicial, 'cuenta_debito', 'debito', 'comentario', 'Balance Inicial', start_date, end_date)
+    # Balance Inicial: filtrar por año (fecha__year) en lugar de rango
+    if anno_balance:
+        qs_balance_inicial = make_query(BalanceInicial, 'cuenta_debito', 'debito', 'comentario', 'Balance Inicial', 
+                                        date(anno_balance, 1, 1), date(anno_balance, 1, 1))
+    else:
+        qs_balance_inicial = make_query(BalanceInicial, 'cuenta_debito', 'debito', 'comentario', 'Balance Inicial')
     qs_ventas = make_query(Ventas, 'cuenta_debito', 'debito', 'comentario', 'Ventas', start_date, end_date)
     qs_ventas_envio = make_query(Ventas, 'cuenta_debito_envio', 'debito_envio', 'comentario', 'Ventas (EERR)', start_date, end_date)
     qs_ventas_iva_plataformas = make_query(Ventas, 'cuenta_debito_iva_plataformas', 'debito_iva_plataformas', 'comentario', 'Ventas (Plataformas)', start_date, end_date)
@@ -226,14 +235,23 @@ def poblar_movimientos_unificados_credito(start_date=None, end_date=None):
     """
     Pobla la tabla MovimientoUnificadoCredito con datos de todas las fuentes.
     Si se proporcionan fechas, solo procesa movimientos dentro del rango.
+    NOTA: BalanceInicial se filtra por el año del start_date (balance de apertura del año).
     """
+    # Determinar el año para el balance inicial
+    anno_balance = start_date.year if start_date else None
+    
     qs_otros = make_query_credito(OtrosGastos.objects, 'cuenta_credito', 'credito', 'comentario', 'Otros Gastos', start_date=start_date, end_date=end_date)
     qs_sueldos  = make_query_credito(SueldosHonorarios.objects,  'cuenta_credito', 'credito', 'comentario', 'Sueldos y Honorarios', start_date=start_date, end_date=end_date)
     qs_sueldos_2  = make_query_credito(SueldosHonorarios.objects,  'cuenta_credito2', 'credito2', 'comentario', 'Sueldos y Honorarios (2)', start_date=start_date, end_date=end_date)
     qs_asientos = make_query_credito(AsientosContables.objects,  'cuenta_credito', 'credito', 'comentario', 'Asientos Contables', start_date=start_date, end_date=end_date)
     qs_entradas = make_query_credito(EntradaProductos.objects,   'cuenta_credito', 'credito',  'comentario', 'Entrada de Productos', usar_cast=True, start_date=start_date, end_date=end_date)
     qs_entradas_gen = make_query_credito(EntradaProductos.objects,   'cuenta_credito_genero', 'credito_genero',  'comentario', 'Entrada de Productos', usar_cast=True, start_date=start_date, end_date=end_date)
-    qs_balance_inicial = make_query_credito(BalanceInicial.objects,  'cuenta_credito', 'credito', 'comentario', 'Balance Inicial', start_date=start_date, end_date=end_date)
+    # Balance Inicial: filtrar por año (fecha del 1 de enero del año) en lugar de rango completo
+    if anno_balance:
+        qs_balance_inicial = make_query_credito(BalanceInicial.objects,  'cuenta_credito', 'credito', 'comentario', 'Balance Inicial', 
+                                                start_date=date(anno_balance, 1, 1), end_date=date(anno_balance, 1, 1))
+    else:
+        qs_balance_inicial = make_query_credito(BalanceInicial.objects,  'cuenta_credito', 'credito', 'comentario', 'Balance Inicial')
     qs_ventas_consulta = make_query_credito(VentasConsulta.objects,  'cuenta_credito', 'costo_venta', 'comentario', 'Ventas Consulta', start_date=start_date, end_date=end_date)
     qs_ventas_eerr = make_query_credito(Ventas.objects.exclude(credito_eerr=0).exclude(credito_eerr__isnull=True),  'cuenta_credito_eerr', 'credito_eerr', 'comentario', 'Ventas (EERR)', start_date=start_date, end_date=end_date)
     qs_ventas_iva = make_query_credito(Ventas.objects.exclude(credito_iva=0).exclude(credito_iva__isnull=True),  'cuenta_credito_iva', 'credito_iva', 'comentario', 'Ventas (IVA)', start_date=start_date, end_date=end_date)
