@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<head>
+    <title>Resumen de Balance BORANGORA </title>
+    <style>
+        table { border-collapse: collapse; width: 100%; font-size: 17px; }
+        th, td {border-top: none; border-bottom: none; border-left: 1px solid #ccc;border-right: 1px solid #ccc;padding: 7px 14px;}        th { background: #e8f3fa; font-size: 19px;}
+        .totales, .highlight { background: #e3f1fd; font-weight: bold; font-size: 18px; }
+        .center-title { text-align: center; font-size: 2em; margin: 18px 0 16px 0; }
+        .export-btn { float:right; margin: 10px 10px 20px 10px; padding:8px 18px; border-radius:6px; background:#1976d2; color:#fff; border:none; cursor:pointer;}
+        .export-btn:hover { background: #145ca7; }
+
+        
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .text-center { text-align: center; }
+        .valor-indicador {
+            text-align: right;
+            font-weight: bold;
+            }
+
+        #tabla-indicadores td:last-child {
+        text-align: right;
+        font-weight: bold;
+}
+
+
+    </style>
+</head>
+<body>
+    <h2 class="center-title">Resumen de Balance 2025</h2>
+    <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 20px; justify-content: flex-end;">
+    <!-- Botón Volver al inicio -->
+    <form action="{% url 'home' %}" method="get" style="display:inline;">
+        <button type="submit" class="export-btn">
+            🏠 Volver al inicio
+        </button>
+    </form>
+    <!-- Botón Exportar a Excel -->
+    <button class="export-btn" onclick="exportResumenExcel()" type="button">
+        📥 Exportar a Excel
+    </button>
+</div>
+
+    <table id="resumen-table">
+        <thead>
+            <tr>
+                <th class="text-right">Linea</th>
+                <th class="text-center">ACTIVO</th>
+                <th class="text-center">Monto</th>
+                <th class="text-right">Linea</th>
+                <th class="text-center">PASIVO</th>
+                <th class="text-center">Monto</th>
+                <th class="text-right">Linea</th>
+                <th class="text-center">RESULTADO</th>
+                <th class="text-center">Monto</th>
+            </tr>
+        </thead>
+        <tbody id="tbody-resumen"></tbody>
+    </table>
+
+    <!-- TABLA DE INDICADORES FINANCIEROS -->
+<br>
+<table id="tabla-indicadores" style="width: 480px; margin: 30px auto 10px auto; background: #f8fbfd;">
+    <thead>
+        <tr>
+            <th colspan="2" style="background:#e3f1fd; text-align:left; font-size:17px;">INDICADORES FINANCIEROS</th>
+            <th style="background:#e3f1fd; font-size:17px;">2025</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td colspan="2">EBITDA</td>
+            <td id="ind-ebitda"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Margen Bruto / Ventas (%)</td>
+            <td id="ind-margen-bruto"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Resultado Operacional Bruto / Ventas (%)</td>
+            <td id="ind-operacional"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Act. Circ. / Pas. Circ. (vcs)</td>
+            <td id="ind-act-circ"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Utilidad / Ventas (%)</td>
+            <td id="ind-utilidad"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Permanencia Existencias (ds)</td>
+            <td id="ind-existencias"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Permanencia Ctas. X Cobrar (ds)</td>
+            <td id="ind-cxc"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Permanencia Ctas. X Pagar (ds)</td>
+            <td id="ind-cxp"></td>
+        </tr>
+        <tr>
+            <td colspan="2">EBITDA / Gastos Financieros (vcs)</td>
+            <td id="ind-ebitda-gf"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Deudas financieras / EBITDA (vcs)</td>
+            <td id="ind-deuda-ebitda"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Pasivo Exigible / Patrimonio Neto (vcs)</td>
+            <td id="ind-pe-pn"></td>
+        </tr>
+        <tr>
+            <td colspan="2">Pasivo Exigible / Patr. Neto+ Int. Min. (vcs)</td>
+            <td id="ind-pe-pnim"></td>
+        </tr>
+    </tbody>
+</table>
+
+
+    <script>
+        // --- 1. Matriz balance desde Django ---
+        const matriz = {{ matriz_js|safe }};
+
+        // --- 2. Arrays de lógica de resumen (ACTUALIZADOS a tu lógica) ---
+        const resumenActivo = [
+            { linea: 16, cuenta: 'caja y banco', formula: '(A:1010100 - P:1010100)' },
+            { linea: 11, cuenta: 'depósitos a plazo', formula: '(A:1010200 - P:1010200)' },
+            { linea: 12, cuenta: 'acciones', formula: '' },
+            { linea: 13, cuenta: 'fondos mutuos', formula: '' },
+            { linea: 14, cuenta: 'pactos', formula: '' },
+            { linea: 15, cuenta: 'otros valores negociables', formula: '(A:1010300 - P:1010300)' },
+            { linea: 10, cuenta: 'Suma valores negociables', formula: '11+12+13+14+15' , highlight: true },
+            { linea: 21, cuenta: 'documentos por cobrar del giro', formula: '(A:1010600-P:1010600)' },
+            { linea: 22, cuenta: 'deudores por venta', formula: '(A:1010400-P:1010400)+(A:1010500-P:1010500)+(A:1010501-P:1010501)'
+                                 '+(A:1010502-P:1010502)+(A:1010503-P:1010503)' },
+            { linea: 23, cuenta: 'documentos en protesto', formula: '' },
+            { linea: 24, cuenta: 'otras ctas. por cobrar del giro', formula: '' },
+            { linea: 25, cuenta: 'provisión incobrables (menos)', formula: '' },
+            { linea: 20, cuenta: 'Suma cuentas por cobrar', formula: '21+22+23+24+25' , highlight: true},
+            { linea: 31, cuenta: 'cxc a empr. afiliadas cp op', formula: '(A:1010800-P:1010800)' },
+            { linea: 32, cuenta: 'cxc a empr. afiliadas cp no op', formula: '' },
+            { linea: 35, cuenta: 'varios deudores (trabajadores)', formula: '' },
+            { linea: 30, cuenta: 'Suma cxc a emp. afil cp', formula: '31+32+35' , highlight: true },
+            { linea: 41, cuenta: 'materias primas y materiales', formula: '(A:1020300-P:1020300)+(A:1020301-P:1020301)+(A:1020302-P:10202302)'
+                                 '+(A:1020303-P:1020303)+(A:1020304-P:1020304)+(A:1020305-P:1020305)+(A:1020306-P:1020306)+(A:1020307-P:1020307)'
+                                 '+(A:1020308-P:1020308)+(A:1020309-P:1020309)' },
+            { linea: 42, cuenta: 'productos en proceso', formula: '' },
+            { linea: 43, cuenta: 'productos terminados', formula: '(A:1010900-P:1010900)' },
+            { linea: 44, cuenta: 'importaciones en transito', formula: '(A:1010500-P:1010500)' },
+            { linea: 45, cuenta: 'otras existencias', formula: '(A:1010901-P:1010901)' },
+            { linea: 40, cuenta: 'Suma existencias', formula: '41+42+43+44+45', highlight: true },
+            { linea: 50, cuenta: 'impuestos por recuperar', formula: '(A:1011000-P:101000)+(A:1011501-P:1011501)+(A:1011001-P:1011001)' },
+            { linea: 55, cuenta: 'gastos anticipados', formula: '(A:1011100-P:101100)+(A:1011101-P:1011101)+(A:1011102-P:101102)+(A:1011103-P:101103)' },
+            { linea: 60, cuenta: 'otros activos circulantes', formula: '(A:120300-P:1020300)+(A:120301-P:1020301)+(A:120302-P:1020302)+(A:120303-P:1020303)' },
+            { linea: 65, cuenta: '<strong>total activo circulante</strong>', formula: '16+10+20+30+40+50+55+60', highlight: true },
+            { linea: 71, cuenta: 'maquinarias', formula: '' },
+            { linea: 72, cuenta: 'terrenos', formula: '(A:120380-P:1020380)' },
+            { linea: 73, cuenta: 'edificios', formula: '(A:120400-P:1020400)' },
+            { linea: 74, cuenta: 'otro activo fijo', formula: '(A:120370-P:1020370)' },
+            { linea: 75, cuenta: 'activos en leasing', formula: '' },
+            { linea: 70, cuenta: 'Suma activo fijo', formula: '71+72+73+74+75' , highlight: true},
+            { linea: 80, cuenta: 'retas. técnica del act. fijo', formula: '' },
+            { linea: 85, cuenta: 'depreciacion acumulada (menos)', formula: '(A:1020350-P:1020350)' },
+            { linea: 90, cuenta: 'depreciacion del ejercicio (menos)', formula: '(A:1010500-P:1010500)' },
+            { linea: 96, cuenta: 'deudores por venta', formula: '' },
+            { linea: 97, cuenta: 'provision incobrable (menos)', formula: '' },
+            { linea: 100, cuenta: 'cxc a emp. afil lp', formula: '' },
+            { linea: 95, cuenta: 'Suma cxc a largo plazo', formula: '96+97+100', highlight: true },
+            { linea: 106, cuenta: 'otros activos largo plazo operativos', formula: '' },
+            { linea: 107, cuenta: 'otros activos largo plazo no operativos', formula: '' },
+            { linea: 105, cuenta: 'Suma otros activos largo plazo', formula: '106+107', highlight: true  },
+            { linea: 111, cuenta: 'inversiones en comp. afiliadas', formula: '' },
+            { linea: 112, cuenta: 'inversiones en otras sociedades', formula: '' },
+            { linea: 110, cuenta: 'Suma inversiones en sociedades', formula: '111+112', highlight: true  },
+            { linea: 121, cuenta: 'menor valor de inversiones', formula: '' },
+            { linea: 122, cuenta: 'mayor valor de inversiones', formula: '' },
+            { linea: 123, cuenta: 'inversión inicial', formula: '(A:1031000-P:1031000)' },
+            { linea: 120, cuenta: 'Suma activos intangibles', formula: '121+122+123', highlight: true  },
+            { linea: 125, cuenta: '<strong>total activos fijos y de lp</strong>', formula: '70+95+105+110+120', highlight: true },
+            { linea: 126, cuenta: '<strong>TOTAL DE ACTIVOS</strong>', formula: '65+125', highlight: true }
+        ];
+
+        const resumenResultado = [
+            { linea: 310, cuenta: 'ventas', formula: 'G:3010101+G:3010111' },
+            { linea: 315, cuenta: 'costo de venta', formula: 'Pe:3010200' },
+            { linea: 320, cuenta: 'margen bruto', formula: '310-315', highlight: true },
+            { linea: 324, cuenta: 'gastos comercialización', formula: 'Pe:3010201+Pe:3010120+Pe:3010130+Pe:3010203+Pe:3010212+Pe:3010213+Pe:3010214+Pe:3010215+Pe:3020200' },
+            { linea: 325, cuenta: 'gastos de públicidad marketing', formula: 'Pe:3010205' },
+            { linea: 326, cuenta: 'gastos arriendos comisiones tiendas', formula: 'Pe:3010211' },
+            { linea: 327, cuenta: 'gastos de envíos adicionales', formula: 'Pe:3010202' },
+            { linea: 330, cuenta: 'gastos de administración', formula: 'Pe:3010300' },
+            { linea: 335, cuenta: 'resultado operacional bruto', formula: '320-324-325-326-327-330', highlight: true },
+            { linea: 340, cuenta: 'gastos financieros', formula: 'Pe:3020600' },
+            { linea: 90, cuenta: 'depreciación del ejercicio (-)', formula: '' },
+            { linea: 350, cuenta: 'resultado oper. neto', formula: '335' , highlight: true },
+            { linea: 355, cuenta: 'ingresos fuera de explotación', formula: 'G:3020300' },
+            { linea: 356, cuenta: 'utilidad inv. emp. relac.', formula: '' },
+            { linea: 357, cuenta: 'amort. mayor valor de inversiones', formula: '' },
+            { linea: 358, cuenta: 'ingresos financieros', formula: 'Pe:3010100' },
+            { linea: 359, cuenta: 'otros ingresos fuera de explotación', formula: 'Pe:3020300' },
+            { linea: 360, cuenta: 'egresos fuera de explotación', formula: 'Pe:3021100' },
+            { linea: 361, cuenta: 'pérdida ajuste inventario', formula: 'Pe:3020900' },
+            { linea: 362, cuenta: 'amort. menor valor de inversiones', formula: '' },
+            { linea: 363, cuenta: 'otros egresos fuera de explotación', formula: 'Pe:302100' },
+            { linea: 364, cuenta: 'amort. intangibles', formula: '' },
+            { linea: 365, cuenta: 'resultado antes corr. monet', formula: '350-355-356-357-358-359-360-361-362-363-364', highlight: true },
+            { linea: 370, cuenta: 'ajuste monetario', formula: '' },
+            { linea: 371, cuenta: 'correción monetaria', formula: '' },
+            { linea: 372, cuenta: 'diferencia de cambio', formula: '' },
+            { linea: 380, cuenta: 'utilidad antes de impuestos', formula: '365-370-371-372', highlight: true },
+            { linea: 385, cuenta: 'impuesto a la renta (-)', formula: 'Pe:30103100' },
+            { linea: 387, cuenta: 'interés minoritario (-)', formula: '' },
+            { linea: 400, cuenta: '<strong>UTILIDAD NETA DEL PERIODO</strong>', formula: '380-385-387', highlight: true }
+        ];
+ 
+
+        const resumenPasivo = [
+            { linea: 135, cuenta: 'deuda financiera CP', formula: '(P:2010100 - A:2010100)' },
+            { linea: 145, cuenta: 'deudas LP con vencimiento en C', formula: '(P:2010200 - A:2010200)' },
+            { linea: 147, cuenta: 'acreedores por leasing CP', formula: '' },
+            { linea: 150, cuenta: 'cxp del giro a corto plazo', formula: '(P:2010400 - A:2010500)' },
+            { linea: 156, cuenta: 'deuda empr. afiliada a cp oper.', formula: '' },
+            { linea: 157, cuenta: 'deuda empr afiliada a cp no op.', formula: '' },
+            { linea: 155, cuenta: 'Suma deuda. emp. afil. cp', formula: '156+157', highlight: true },
+            { linea: 160, cuenta: 'ingresos percibidos x adelantado', formula: '(P:2011400 - A:2011400)' },
+            { linea: 165, cuenta: 'provisiones corto plazo', formula: '(P:2011100 - A:2011100)' },
+            { linea: 170, cuenta: 'impuestos por pagar', formula: '(P:2011200 - A:2011200)+(P:2011300 - A:2011300)+(P:2011310 - A:2011310)+(P:2011311 - A:2011311)' },
+            { linea: 175, cuenta: 'cuenta corriente de socios', formula: '(P:2010902 - A:2010902)+(P:2010903 - A:2010903)' },
+            { linea: 180, cuenta: 'dividendos por pagar', formula: '' },
+            { linea: 185, cuenta: 'otros acreedores corto plazo', formula: '(P:2011600 - A:2011600)' },
+            { linea: 190, cuenta: '<strong>total pasivo circulante</strong>', formula: '135+145+147+150+155+160+165+170+175+180+185', highlight: true },
+            { linea: 195, cuenta: 'deuda financiera lp', formula: '(P:2020100 - A:2020100)' },
+            { linea: 201, cuenta: 'acreedores por leasing lp', formula: '' },
+            { linea: 205, cuenta: 'cxp del giro a largo plazo', formula: '(P:2020300 - A:2020300)' },
+            { linea: 210, cuenta: 'cuenta corriente de socios largo plazo', formula: '(P:2020502 - A:2020502)+(P:2020503 - A:2020503)' },
+            { linea: 215, cuenta: 'provisiones largo plazo', formula: '' },
+            { linea: 220, cuenta: 'otros acreed. lp', formula: '(P:2011600 - A:2011600)' },
+            { linea: 225, cuenta: '<strong>total pasivo de largo plazo</strong>', formula: '195+201+205+210+215+220', highlight: true },
+            { linea: 230, cuenta: '<strong>total pasivo exigible</strong>', formula: '190+225', highlight: true },
+            { linea: 232, cuenta: 'interés minoritario', formula: '' },
+            { linea: 235, cuenta: 'capital', formula: '(P:2030100 - A:2030100)' },
+            { linea: 240, cuenta: 'cuenta obligada socios (menos)', formula: '' },
+            { linea: 245, cuenta: 'reservas de revalorización', formula: '(P:2030200 - A:2030200)' },
+            { linea: 250, cuenta: 'reservas varias', formula: '(P:2030400 - A:2030400)' },
+            { linea: 255, cuenta: 'reservas futuros dividendos', formula: '' },
+            { linea: 260, cuenta: 'fluc. val. y/o mayor valor inv.', formula: '' },
+            { linea: 265, cuenta: 'utilidad neta retenida', formula: '(P:2030600 - A:2030600)' },
+            { linea: 270, cuenta: 'utilidad neta del periodo', formula: '400' },
+            { linea: 275, cuenta: 'Ajustes', formula: '(P:2030402 - A:2030402)+(P:2030401 - A:2030401)' },
+            { linea: 280, cuenta: 'divid. pagados y/o retiro socios (menos)', formula: '(P:2030800 - A:2030800)' },
+            { linea: 285, cuenta: 'castigos (menos)', formula: '' },
+            { linea: 290, cuenta: '<strong>total patrimonio neto</strong>', formula: '232+235+240+245+250+255+260+265+270+275+280+285', highlight: true },
+            { linea: 295, cuenta: '<strong>TOTAL PASIVOS</strong>', formula: '230+290', highlight: true },
+            { linea: 999, cuenta: '<strong>Cuadre</strong>', formula: '126-295', highlight: true } 
+        ];
+
+       
+
+        // --- 3. Función para evaluar fórmulas, ADAPTADA ---
+    function evalFormula(formula, matriz, lineaLookup = {}, resultadoValoresPorLinea = {}, valoresPorLineaActivo = {}) {
+        if (!formula || !formula.trim()) return 0;
+
+        // Si la fórmula es solo un número, busca primero en resultadoValoresPorLinea, luego en valoresPorLineaActivo y luego lineaLookup
+        if (/^\d+$/.test(formula.trim())) {
+            if (resultadoValoresPorLinea && resultadoValoresPorLinea[formula.trim()] !== undefined) {
+                return resultadoValoresPorLinea[formula.trim()];
+            }
+            if (valoresPorLineaActivo && valoresPorLineaActivo[formula.trim()] !== undefined) {
+                return valoresPorLineaActivo[formula.trim()];
+            }
+            if (lineaLookup && lineaLookup[formula.trim()] !== undefined) {
+                return lineaLookup[formula.trim()];
+            }
+            return 0;
+        }
+
+        // Reemplaza codigos tipo A:12345 por valores de la matriz
+        let expr = formula.replace(/([APG][e]?):(\d{5,7})/g, (match, pref, code) => {
+            let key = `${pref}:${code}`;
+            return matriz[key] !== undefined ? matriz[key] : '0';
+        });
+
+        // Reemplaza referencias numéricas por sus valores correspondientes
+        expr = expr.replace(/\b(\d{2,4})\b/g, (match, num) => {
+            if (resultadoValoresPorLinea && resultadoValoresPorLinea[num] !== undefined) return resultadoValoresPorLinea[num];
+            if (valoresPorLineaActivo && valoresPorLineaActivo[num] !== undefined) return valoresPorLineaActivo[num];
+            if (lineaLookup && lineaLookup[num] !== undefined) return lineaLookup[num];
+            return match;
+        });
+
+        if (/[^0-9\+\-\*\/\(\)\.\s]/.test(expr)) {
+            return 0;
+        }
+        try {
+            return eval(expr) || 0;
+        } catch {
+            return 0;
+        }
+    }
+
+   // 4. Función para calcular resumen 
+    function calcularResumen(resumenArr, matriz, resultadoValoresPorLinea = {}, valoresPorLineaActivo = {}) {
+        const resultados = {};
+        resumenArr.forEach(row => {
+            const lineaLookup = Object.assign({}, resultados);
+            const valor = evalFormula(row.formula, matriz, lineaLookup, resultadoValoresPorLinea, valoresPorLineaActivo);
+            resultados[row.linea] = valor;
+            row.resultado = valor;
+        });
+        return resumenArr;
+    }
+  
+    function formatMonto(val) {
+        if (val === undefined || val === null) return '';
+        return Number(Math.round(val)).toLocaleString('es-CL', {maximumFractionDigits: 0});
+    }
+
+    function renderResumen() {
+        const tbody = document.getElementById('tbody-resumen');
+        tbody.innerHTML = '';
+        const maxRows = Math.max(resumenActivo.length, resumenPasivo.length, resumenResultado.length);
+        for (let i = 0; i < maxRows; i++) {
+            const ra = resumenActivo[i] || {};
+            const rp = resumenPasivo[i] || {};
+            const rr = resumenResultado[i] || {};
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-right">${ra.linea || ''}</td>
+                <td class="text-left ${ra.highlight ? 'highlight' : ''}">${ra.cuenta || ''}</td>
+                <td class="text-right ${ra.highlight ? 'highlight' : ''}">${formatMonto(ra.resultado)}</td>
+                <td class="text-right">${rp.linea || ''}</td>
+                <td class="text-left ${rp.highlight ? 'highlight' : ''}">${rp.cuenta || ''}</td>
+                <td class="text-right ${rp.highlight ? 'highlight' : ''}">${formatMonto(rp.resultado)}</td>
+                <td class="text-right">${rr.linea || ''}</td>
+                <td class="text-left ${rr.highlight ? 'highlight' : ''}">${rr.cuenta || ''}</td>
+                <td class="text-right ${rr.highlight ? 'highlight' : ''}">${formatMonto(rr.resultado)}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function exportResumenExcel() {
+        // 1. Resumen Balance
+        var resumenTable = document.getElementById('resumen-table');
+        var wb = XLSX.utils.table_to_book(resumenTable, {sheet: "Resumen Balance"});
+
+        // 2. Indicadores Financieros
+        var tablaInd = document.getElementById('tabla-indicadores');
+        if (tablaInd) {
+            var wsInd = XLSX.utils.table_to_sheet(tablaInd);
+            XLSX.utils.book_append_sheet(wb, wsInd, "Indicadores Financieros");
+        }
+
+        // 3. Descarga el archivo como .xlsx real
+        XLSX.writeFile(wb, 'ResumenBalance.xlsx');
+    }
+
+    // --- 5. Calcula los resúmenes, asegurando el orden correcto ---
+
+    // 5.1 Activo
+    calcularResumen(resumenActivo, matriz);
+
+    // 5.2 Guarda los valores calculados de Activo por línea
+    const valoresPorLineaActivo = {};
+    resumenActivo.forEach(row => {
+        valoresPorLineaActivo[row.linea] = row.resultado;
+    });
+
+    // 5.3 Resultado
+    calcularResumen(resumenResultado, matriz);
+
+    // 5.4 Obtén los valores por línea del Resultado (ejemplo: resultadoValoresPorLinea[400])
+    const resultadoValoresPorLinea = {};
+    resumenResultado.forEach(row => {
+        resultadoValoresPorLinea[row.linea] = row.resultado;
+    });
+
+    // 5.5 Ahora puedes pasar esos valores para el resumenPasivo
+    calcularResumen(resumenPasivo, matriz, resultadoValoresPorLinea, valoresPorLineaActivo);
+
+    // 5.6 Renderiza la tabla
+    renderResumen();
+
+    // Utilidades de búsqueda
+    function buscarResultado(linea) {
+        let row = resumenResultado.find(r => r.linea === linea);
+        return row ? row.resultado : 0;
+    }
+    function buscarActivo(linea) {
+        let row = resumenActivo.find(r => r.linea === linea);
+        return row ? row.resultado : 0;
+    }
+    function buscarPasivo(linea) {
+        let row = resumenPasivo.find(r => r.linea === linea);
+        return row ? row.resultado : 0;
+    }
+
+    function setIndicador(id, valor, isPercent = false, decimals = 0) {
+        let txt = "";
+        if (valor == null || valor === "") {
+            txt = '';
+        } else if (isPercent) {
+            txt = Number(valor).toFixed(decimals) + "%";
+        } else {
+            txt = Number(valor).toLocaleString('es-CL', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+        document.getElementById(id).innerHTML = `<b>${txt}</b>`;
+    }
+
+    // Calcula y muestra los indicadores
+    function renderIndicadores() {
+        // Ejemplo de cálculos, ajusta si tus líneas cambian
+        let ventas = buscarResultado(310);
+        let margenBruto = buscarResultado(320);
+        let resOperacional = buscarResultado(335);
+        let utilidadNeta = buscarResultado(400);
+        let ebitda = buscarResultado(340); // Ajusta si tu EBITDA está en otra línea
+        let activoCirc = buscarActivo(65);
+        let pasivoCirc = buscarPasivo(190);
+        let existencias = buscarActivo(40);
+        let costoVenta = buscarResultado(315);
+        let cxc = buscarActivo(20);
+        let cxp = buscarPasivo(185);
+        let gastosFinancieros = buscarResultado(340); // Ajusta si no es 340
+        let deudaCP = buscarPasivo(135);
+        let deudaLP = buscarPasivo(195);
+        let pasivoExigible = buscarPasivo(230);
+        let patrimonioNeto = buscarPasivo(290);
+        let interesMin = buscarPasivo(232);
+
+        setIndicador('ind-ebitda', resOperacional);
+        setIndicador('ind-margen-bruto', ventas ? 100 * margenBruto / ventas : 0, true,1);
+        setIndicador('ind-operacional', ventas ? 100 * resOperacional / ventas : 0, true,1);
+        setIndicador('ind-act-circ', pasivoCirc ? (activoCirc / pasivoCirc) : 0, false, 1);
+        setIndicador('ind-utilidad', ventas ? 100 * utilidadNeta / ventas : 0, false,1);
+        setIndicador('ind-existencias', costoVenta ? Math.round((existencias / costoVenta) * 365) : '');
+        setIndicador('ind-cxc', ventas ? Math.round((cxc / ventas) * 365) : '');
+        setIndicador('ind-cxp', costoVenta ? Math.round((cxp / costoVenta) * 365) : '');
+        setIndicador('ind-ebitda-gf', gastosFinancieros ? (resOperacional / gastosFinancieros) : 0, false, 1);
+        setIndicador('ind-deuda-ebitda', ebitda ? ((deudaCP + deudaLP) / ebitda).toFixed(1) : '');
+        setIndicador('ind-pe-pn', patrimonioNeto ? (pasivoExigible / patrimonioNeto) : 0, false, 1);
+        setIndicador('ind-pe-pnim', patrimonioNeto + interesMin ? (pasivoExigible / (patrimonioNeto + interesMin)) : 0, false, 1);
+    }
+
+    // Ejecuta después de renderResumen:
+    renderIndicadores();
+    
+</script>
+</body>
+</html>

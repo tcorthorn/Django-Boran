@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Balance General</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; font-size: 18px; }
+        th, td { border: 1px solid #ccc; padding: 10px 18px; }
+        th { background: #f2f2f2; position: sticky; top:0; font-size: 22px;}
+        .export-btn { margin: 16px 0; padding: 10px 20px; border-radius: 5px; background: #1976d2; color: #fff; border: none; cursor: pointer;}
+        .export-btn:hover { background: #115; }
+        .totales { background: #e3f1fd; font-weight: bold; font-size: 20px; }
+        .left { text-align: left; }
+        .right { text-align: right; }
+        .rojo { color: #d32f2f !important; font-weight: bold; }
+        .center-title {
+            text-align: center;
+            font-size: 2.5em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .export-form {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2 class="center-title">Balance General Borangora</h2>
+
+    {% if fecha_corte %}
+    <div style="text-align: center; font-size: 1.35em; color: #2c6ba0; margin-bottom: 15px;">
+        <b>Balance al {{ fecha_corte }}</b>
+    </div>
+    {% endif %}
+
+    <!-- Botones de exportar y volver -->
+    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 20px;">
+        <form class="export-form" method="get" action="{% url 'home' %}">
+            <button class="export-btn" type="submit">🏠 Volver al inicio</button>
+        </form>
+        <form class="export-form" method="get" action="">
+            <!-- Reenvía la fecha_corte para mantener el filtro al exportar -->
+            {% if fecha_corte %}
+                <input type="hidden" name="fecha_corte" value="{{ fecha_corte }}">
+            {% endif %}
+            <button class="export-btn" type="submit" name="export" value="excel">Exportar a Excel</button>
+        </form>
+        
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th class="left">Código</th>
+                <th class="left">Nombre</th>
+                <th class="right">Débito</th>
+                <th class="right">Crédito</th>
+                <th class="right">Saldo Deudor</th>
+                <th class="right">Saldo Acreedor</th>
+                <th class="right">Activo</th>
+                <th class="right">Pasivo</th>
+                <th class="right">Pérdidas</th>
+                <th class="right">Ganancias</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in matriz_balance %}
+            <tr>
+                <td class="left">{{ fila.codigo }}</td>
+                <td class="left">{{ fila.nombre }}</td>
+                <td class="right">{{ fila.debito }}</td>
+                <td class="right">{{ fila.credito }}</td>
+                <td class="right">{{ fila.saldo_deudor }}</td>
+                <td class="right">{{ fila.saldo_acreedor }}</td>
+                <td class="right">{{ fila.activo }}</td>
+                <td class="right">{{ fila.pasivo }}</td>
+                <td class="right">{{ fila.perdidas }}</td>
+                <td class="right">{{ fila.ganancias }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="totales">
+                <td colspan="2" class="left">Totales</td>
+                <td class="right">{{ totales.debito }}</td>
+                <td class="right">{{ totales.credito }}</td>
+                <td class="right">{{ totales.saldo_deudor }}</td>
+                <td class="right">{{ totales.saldo_acreedor }}</td>
+                <td class="right">{{ totales.activo }}</td>
+                <td class="right">{{ totales.pasivo }}</td>
+                <td class="right">{{ totales.perdidas }}</td>
+                <td class="right">{{ totales.ganancias }}</td>
+            </tr>
+            <tr class="totales">
+                <td colspan="2" class="left">Utilidad (pérdida) del Ejercicio</td>
+                <td class="right"></td>
+                <td class="right"></td>
+                <td class="right"></td>
+                <td class="right"></td>
+                <td class="right">{{ utilidad.activo }}</td>
+                <td class="right{% if utilidad_pasivo_rojo %} rojo{% endif %}">{{ utilidad.pasivo }}</td>
+                <td class="right{% if utilidad_perdidas_rojo %} rojo{% endif %}">{{ utilidad.perdidas }}</td>
+                <td class="right">{{ utilidad.ganancias }}</td>
+            </tr>
+            <tr class="totales">
+                <td colspan="2" class="left">SUMAS TOTALES</td>
+                <td class="right">{{ sumas_totales.debito }}</td>
+                <td class="right">{{ sumas_totales.credito }}</td>
+                <td class="right">{{ sumas_totales.saldo_deudor }}</td>
+                <td class="right">{{ sumas_totales.saldo_acreedor }}</td>
+                <td class="right">{{ sumas_totales.activo }}</td>
+                <td class="right">{{ sumas_totales.pasivo }}</td>
+                <td class="right">{{ sumas_totales.perdidas }}</td>
+                <td class="right">{{ sumas_totales.ganancias }}</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>

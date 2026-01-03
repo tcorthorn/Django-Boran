@@ -1,0 +1,129 @@
+{% extends "boran_app/base.html" %}
+{% load humanize %}
+
+{% block title %}Movimientos por Cuenta{% endblock %}
+
+{% block content %}
+<style>
+  .page-title { color:#29495c; font-weight:600; font-size:1.6rem; letter-spacing:.3px; }
+  .card {
+    border: 1px solid #e3e6ea; border-radius: 12px; background: #fff;
+    box-shadow: 0 1px 3px rgba(44,107,160,.07); margin-bottom: 1.5rem;
+  }
+  .card-header { background:#e4edf4; color:#417690; font-weight:600; }
+  .table thead th { white-space: nowrap; }
+  .thead-sticky th { position: sticky; top: 0; background: #f8fafc; z-index: 2; }
+  .table-colgroup { background: #f1f5f9; font-weight:700; text-transform: uppercase; font-size:.85rem; }
+  .muted { color:#6b7280; }
+</style>
+
+<div class="container-fluid">
+ <h1 class="page-title mb-3">
+  🔎 Movimientos por Cuenta
+  {% if hubo_busqueda and not error_msg %}
+    <a href="{% url 'movimientos_cuenta' %}?cuenta={{ cuenta_valor }}&export=excel"
+       class="btn btn-success btn-sm float-end">
+      ⬇️ Exportar a Excel
+    </a>
+  {% endif %}
+</h1>
+
+  <!-- Tarjeta de búsqueda -->
+  <div class="card">
+    <div class="card-header">Buscar</div>
+    <div class="card-body">
+      <form class="row gy-2 gx-2" method="get" action="{% url 'movimientos_cuenta' %}">
+        <div class="col-12 col-md-4">
+          <label for="id_cuenta" class="form-label">Código de cuenta</label>
+          <input id="id_cuenta" name="cuenta" type="number" inputmode="numeric" class="form-control"
+                 placeholder="Ej: 3010201" value="{{ cuenta_valor }}">
+        </div>
+        <div class="col-12 col-md-3 align-self-end">
+          <button class="btn btn-primary w-100">Consultar</button>
+        </div>
+        {% if hubo_busqueda %}
+        <div class="col-12 col-md-3 align-self-end">
+          <a class="btn btn-outline-secondary w-100" href="{% url 'movimientos_cuenta' %}">Limpiar</a>
+        </div>
+        {% endif %}
+      </form>
+      {% if error_msg %}
+        <div class="alert alert-danger mt-3 mb-0">{{ error_msg }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if hubo_busqueda and not error_msg %}
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Resultados</span>
+        <div>
+          <span class="badge bg-success me-2">Σ Débitos: {{ total_debitos|default:0|floatformat:0|intcomma }}</span>
+          <span class="badge bg-danger">Σ Créditos: {{ total_creditos|default:0|floatformat:0|intcomma }}</span>
+          <span class="badge bg-primary">
+            Saldo de Cuenta: {{ saldo_cuenta|default:0|floatformat:0|intcomma }}
+          </span>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if rows %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle table-bordered">
+            <thead class="thead-sticky">
+              <tr class="table-colgroup text-center">
+                <th colspan="5">Débitos</th>
+                <th colspan="5">Créditos</th>
+              </tr>
+              <tr>
+                <th>Fecha</th>
+                <th>Cuenta Débito</th>
+                <th class="text-end">Monto Débito</th>
+                <th>Comentario</th>
+                <th>Tabla Origen</th>
+
+                <th>Fecha</th>
+                <th>Cuenta Crédito</th>
+                <th class="text-end">Monto Crédito</th>
+                <th>Comentario</th>
+                <th>Tabla Origen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in rows %}
+              <tr>
+                <td>{{ r.fecha_debito|date:"Y-m-d"|default:"—" }}</td>
+                <td>{{ r.cta_debito|default:"—" }}</td>
+                <td class="text-end">
+                  {% if r.monto_debito is not None %}{{ r.monto_debito|floatformat:0|intcomma }}{% else %}<span class="muted">—</span>{% endif %}
+                </td>
+                <td>{{ r.coment_debito|default:"" }}</td>
+                <td>{{ r.origen_debito|default:"" }}</td>
+
+                <td>{{ r.fecha_credito|date:"Y-m-d"|default:"—" }}</td>
+                <td>{{ r.cta_credito|default:"—" }}</td>
+                <td class="text-end">
+                  {% if r.monto_credito is not None %}{{ r.monto_credito|floatformat:0|intcomma }}{% else %}<span class="muted">—</span>{% endif %}
+                </td>
+                <td>{{ r.coment_credito|default:"" }}</td>
+                <td>{{ r.origen_credito|default:"" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <div class="text-muted">No se encontraron movimientos para la cuenta <strong>{{ cuenta_valor }}</strong>.</div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+  // UX: foco inicial en el input
+  (function() {
+    const el = document.getElementById('id_cuenta');
+    if (el) { el.focus(); el.select(); }
+  })();
+</script>
+{% endblock %}

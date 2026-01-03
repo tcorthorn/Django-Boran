@@ -1,0 +1,113 @@
+{% load formatos %}
+
+<div class="top-bar">
+  <h2>Dashboard Financiero BORANGORA</h2>
+  <div class="top-bar-btns">
+    <form action="{% url 'home' %}" method="get" style="display: contents;">
+      <button type="submit" class="btn">🏠 Volver al inicio</button>
+    </form>
+    <button class="btn" onclick="exportResumenExcel()" type="button" aria-label="Exportar resumen mensual a Excel">
+      📥 Exportar a Excel
+    </button>
+  </div>
+</div>
+
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f8fa; }
+
+  /* ---------- TOP BAR ---------- */
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 36px; padding: 24px 30px 20px 30px;
+    border-bottom: 2px solid #e0e0e0; background: #fafbfc; gap: 18px;
+  }
+  .top-bar h2 {
+    margin: 0; font-size: 2em; font-weight: 700; letter-spacing: .01em; color: #1968a3;
+  }
+  .top-bar-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    background: #1968a3; color: #fff; padding: 12px 28px; border: none; border-radius: 7px;
+    font-size: 1.05em; cursor: pointer; transition: background .18s; font-weight: 500;
+    box-shadow: 0 1px 8px 0 #e0eaf7; outline: none; display: inline-block;
+  }
+  .btn:hover, .btn:focus { background: #0d47a1; }
+
+  /* ---------- TABLE ---------- */
+  .table-wrap {
+    width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    border-radius: 18px; box-shadow: 0 2px 16px 0 #dde5ee; background: #fff; margin-bottom: 38px;
+  }
+  table#tabla-resumen-mensual {
+    border-collapse: separate; border-spacing: 0; width: 100%; min-width: 720px;
+    background: #fff; border-radius: 18px; overflow: hidden;
+  }
+  th, td {
+    border: 1px solid #dde3ec; padding: 7px 10px; text-align: right; font-size: .98em;
+    transition: background .16s; white-space: nowrap;
+  }
+  th {
+    position: sticky; top: 0; z-index: 3; background: #eaf3fa; color: #1968a3; font-weight: 700;
+    text-align: center; letter-spacing: .02em;
+  }
+  td:first-child, th:first-child {
+    text-align: left; position: sticky; left: 0; z-index: 2; background: #fff;
+  }
+  thead th:first-child { z-index: 4; } /* intersección cabecera + 1a columna */
+  tr.fila-calculada { background-color: #e3f2fd !important; }
+  tr.fila-calculada td, tr.fila-calculada th { font-weight: bold; }
+  tr:hover { background: #f5fbff; }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 992px) {
+    .top-bar { padding: 18px 16px; }
+    .top-bar h2 { font-size: 1.6em; }
+  }
+  @media (max-width: 768px) {
+    .top-bar { flex-direction: column; align-items: stretch; gap: 12px; }
+    .top-bar-btns { width: 100%; }
+    .btn { width: 100%; padding: 12px 16px; font-size: 1rem; }
+    th, td { font-size: .95em; padding: 8px 10px; }
+    table#tabla-resumen-mensual { min-width: 640px; }
+  }
+  @media (max-width: 480px) {
+    .top-bar h2 { font-size: 1.3em; }
+    th, td { font-size: .9em; }
+    table#tabla-resumen-mensual { min-width: 560px; }
+  }
+</style>
+
+<div class="table-wrap" role="region" aria-label="Tabla de resumen mensual con desplazamiento horizontal">
+  <table id="tabla-resumen-mensual">
+    <thead>
+      <tr>
+        <th>Concepto</th>
+        {% for mes in meses %}
+          <th>{{ mes }}</th>
+        {% endfor %}
+        <th>Acumulado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for slug, concepto, valores, acumulado in filas %}
+        <tr {% if slug in filas_calculadas %}class="fila-calculada"{% endif %}>
+          <td>{{ concepto }}</td>
+          {% for valor in valores %}
+            <td>{% if valor is not None %}{{ valor|miles_punto }}{% else %}—{% endif %}</td>
+          {% endfor %}
+          <td><strong>{{ acumulado|miles_punto }}</strong></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- SheetJS para exportación a Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+function exportResumenExcel() {
+  const table = document.getElementById('tabla-resumen-mensual');
+  const wb = XLSX.utils.table_to_book(table, { sheet: "Resumen Mensual" });
+  XLSX.writeFile(wb, 'resumen_mensual.xlsx');
+}
+</script>
+

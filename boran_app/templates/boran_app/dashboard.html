@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Financiero BRONZ</title>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 30px; background: #f8f8fa; color: #222; }
+        h1 { color: #1968a3; }
+        .grafico-container { background: #fff; border-radius: 18px; padding: 24px; box-shadow: 0 2px 8px #0002; margin-bottom: 36px; }
+        .tabla-resumen { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 5px #0001; }
+        .tabla-resumen th, .tabla-resumen td { padding: 10px 16px; text-align: right; }
+        .tabla-resumen th { background: #eaf3fa; color: #1968a3; font-weight: 700; }
+        .tabla-resumen tr:nth-child(even) { background: #f5fafd; }
+        .tabla-resumen tr:hover { background: #ddefff; }
+        .btn { background: #1968a3; color: #fff; padding: 10px 22px; border: none; border-radius: 7px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #154f7a; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+        .msg { color: green; font-weight: 600; margin-bottom: 20px;}
+    </style>
+</head>
+<body>
+    {% load humanize %}
+
+    <div class="top-bar">
+        <h1>Resultados Financieros Mensuales</h1>
+        <div>
+            <form action="{% url 'actualizar_resumen_mensual' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button class="btn" type="submit">Actualizar Resumen Mensual</button>
+            </form>
+            <form action="{% url 'exportar_resumen_excel' %}" method="get" style="display:inline; margin-left:12px;">
+                <button class="btn" type="submit">Exportar a Excel</button>
+            </form>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="msg">
+        {% for message in messages %}
+            {{ message }}
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grafico-container">
+        <canvas id="graficoResultados" height="100"></canvas>
+    </div>
+
+    <table class="tabla-resumen">
+        <thead>
+            <tr>
+                <th>Mes</th>
+                <th>Ventas</th>
+                <th>Costos</th>
+                <th>Utilidad</th>
+                <th>Utilidad Acumulada</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in resumenes %}
+            <tr>
+                <td style="text-align: center;">{{ r.mes|date:"Y-m" }}</td>
+                <td>{{ r.ventas|floatformat:0|intcomma }}</td>
+                <td>{{ r.costos|floatformat:0|intcomma }}</td>
+                <td>{{ r.utilidad|floatformat:0|intcomma }}</td>
+                <td>{{ r.utilidad_acumulada|floatformat:0|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No hay datos disponibles.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        // Arrays base (todos los meses)
+        const labels = [
+            {% for r in resumenes %}
+                "{{ r.mes|date:'Y-m' }}"{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        const ventas = [
+            {% for r in resumenes %}
+                {{ r.ventas|default:"0" }}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        const costos = [
+            {% for r in resumenes %}
+                {{ r.costos|default:"0" }}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        const utilidad = [
+            {% for r in resumenes %}
+                {{ r.utilidad|default:"0" }}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        // --- FILTRAR SOLO MESES DE 31 DÍAS ---
+        const MESES_31_DIAS = ['01', '03', '05', '07', '08', '10', '12'];
+        const indices31 = labels.map((l, idx) => MESES_31_DIAS.includes(l.slice(-2)) ? idx : -1).filter(idx => idx !== -1);
+
+        const labels31 = indices31.map(idx => labels[idx]);
+        const ventas31 = indices31.map(idx => ventas[idx]);
+        const costos31 = indices31.map(idx => costos[idx]);
+        const utilidad31 = indices31.map(idx => utilidad[idx]);
+
+        const ctx = document.getElementById('graficoResultados').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels31,
+                datasets: [
+                    {
+                        label: 'Ventas',
+                        data: ventas31,
+                        borderWidth: 2,
+                        tension: 0.25,
+                        pointRadius: 4,
+                        fill: false
+                    },
+                    {
+                        label: 'Costos',
+                        data: costos31,
+                        borderWidth: 2,
+                        tension: 0.25,
+                        pointRadius: 4,
+                        fill: false
+                    },
+                    {
+                        label: 'Utilidad',
+                        data: utilidad31,
+                        borderWidth: 2,
+                        borderDash: [6, 6],
+                        tension: 0.25,
+                        pointRadius: 4,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Monto ($)' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Mes' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

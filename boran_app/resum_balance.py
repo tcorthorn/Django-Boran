@@ -1,0 +1,61 @@
+RESUMEN_ACTIVO = [
+    {"linea": 16, "cuenta": "Efectivo y Equivalente al Efectivo", "formula": "(A:1010100 - P:1010100)"},
+    {"linea": 11, "cuenta": "Activos Financieros", "formula": "(A:1010200 - P:1010200)+(A:1010300 - P:1010300)"},
+    {"linea": 21, "cuenta": "Cuentas por Cobrar del Giro", "formula": "(A:1010400-P:1010400)+(A:1010500-P:1010500)+(A:1010501-P:1010501)+(A:1010502-P:1010502)+(A:1010503-P:1010503)+(A:1010600-P:1010600)+(A:1010700-P:1010700)"},
+    {"linea": 22, "cuenta": "Ctas x Cobrar Relacionados", "formula": "(A:1010800-P:1010800)"},
+    {"linea": 41, "cuenta": "Existencias", "formula": "(A:1010300-P:1010300)+(A:1010301-P:1010301)+(A:1010302-P:1010302)+(A:1010303-P:1010303)+(A:1010304-P:1010304)+(A:1010306-P:1010306)+(A:1010306-P:1010306)+(A:1010900-P:1010900)+(A:1010500-P:1010500)+(A:1010901-P:1010901)"},
+    {"linea": 23, "cuenta": "Otros", "formula": "(A:1011000-P:101000)+(A:1011501-P:1011501)+(A:1011001-P:1011001)+(A:1011100-P:101100)+(A:1011101-P:1011101)+(A:1011102-P:101102)+(A:1011103-P:101103)+(A:120300-P:1020300)+(A:120301-P:1020301)+(A:120302-P:1020302)+(A:120303-P:1020303)"},
+    {"linea": 40, "cuenta": "ACTIVOS CIRCULANTES", "formula": "11+16+21+22+23+41", "highlight": True},
+    {"linea": 71, "cuenta": "Activo Fijo Neto", "formula": "(A:1020370-P:1020370)+(A:1020380-P:1020380)+(A:1020400-P:1020400)+(A:1020401-P:1020401)+(A:1020500-P:1020500)-(A:1020600-P:1020600)"},
+    {"linea": 100, "cuenta": "Ctas x Cobrar a Largo Plazo", "formula": "(A:1030500-P:1030500)+(A:1030700-P:1030700)"},
+    {"linea": 106, "cuenta": "Ctas x Cobrar Relacionados", "formula": "(A:1030600-P:1030600)"},
+    {"linea": 111, "cuenta": "Inversiones en Soc.", "formula": "(A:1030100-P:1030100)+(A:1030200-P:1030200)(A:1030300-P:1030300)(A:1030400-P:1030400)"},
+    {"linea": 112, "cuenta": "Godwill", "formula": "(A:1030800-P:1030800)"},
+    {"linea": 121, "cuenta": "Otros Intangibles", "formula": ""},
+    {"linea": 122, "cuenta": "Otros", "formula": ""},
+    {"linea": 122, "cuenta": "Inversion Inicial", "formula": "(A:1031000-P:1031000)"},
+    {"linea": 125, "cuenta": "<strong>ACTIVOS DE LARGO PLAZO</strong>", "formula": "71+100+106+111+112+121+122", "highlight": True},
+    {"linea": 126, "cuenta": "<strong>TOTAL DE ACTIVOS</strong>", "formula": "40+125", "highlight": True}
+]
+
+RESUMEN_RESULTADO = [
+    {"linea": 310, "cuenta": "Ventas", "formula": "G:3010101+G:3010111"},
+    {"linea": 315, "cuenta": "Costo de Venta", "formula": "Pe:3010200"},
+    {"linea": 320, "cuenta": "Margen Bruto", "formula": "310-315", "highlight": True},
+    {"linea": 324, "cuenta": "Gastos Comercialización", "formula": "Pe:3010201+Pe:3010120+Pe:3010130+Pe:3010203+Pe:3010212+Pe:3010213+Pe:3010214+Pe:3010215"},
+    {"linea": 325, "cuenta": "Gastos de Publicidad y Marketing", "formula": "Pe:3010205"},
+    {"linea": 326, "cuenta": "Gastos arriendos Comisiones Tiendas", "formula": "Pe:3010211"},
+    {"linea": 327, "cuenta": "Gastos de Envíos Adicionales", "formula": "Pe:3010202"},
+    {"linea": 330, "cuenta": "Gastos de Administración", "formula": "Pe:3010300"},
+    {"linea": 335, "cuenta": "Resultado Operacional Bruto", "formula": "320-324-325-326-327-330", "highlight": True},
+    {"linea": 340, "cuenta": "Gastos Financieros", "formula": "Pe:3020200"},
+    {"linea": 90,  "cuenta":  "Depreciación del Ejercicio (-)", "formula": "Pe:3010400"},
+    {"linea": 350, "cuenta": "Resultado Oper. Neto", "formula": "335-340-90", "highlight": True},
+    {"linea": 355, "cuenta": "Utilidad (pérd.) No Operacional", "formula": "G:3020300 + G:3020100 + G:3020200-Pe:3020400-Pe:3020500 - Pe:3020600"},
+    {"linea": 358, "cuenta": "Ajuste Monetario", "formula": "Pe:3021100"},
+    {"linea": 385, "cuenta": "Impuesto a la Renta", "formula": "Pe:3010100"},
+    {"linea": 387, "cuenta": "Ajustes", "formula": ""},
+    {"linea": 400, "cuenta": "<strong>UTILIDAD NETA DEL PERIODO</strong>", "formula": "350-355-358-385-387", "highlight": True}
+]
+
+RESUMEN_PASIVO = [
+    {"linea": 135, "cuenta": "Deuda Financiera C.P.", "formula": "(P:2010100 - A:2010100) + (P:2010200 - A:2010200) + (P:2010500 - A:2010500)"},
+    {"linea": 145, "cuenta": "Ctas x Pagar del Giro", "formula": "(P:2010300 - A:2010300) + (P:2010400 - A:2010400) + (P:2010600 - A:2010600)+ (P:2010700 - A:2010700) + (P:2010701 - A:2010701) + (P:2010702 - A:2010702) + (P:2010703 - A:2010703) + (P:2010704 - A:2010704)+(P:2010800 - A:2010800) + (P:2010900- A:2010900)"},
+    {"linea": 156, "cuenta": "Ctas. X Pagar Relacionados", "formula": "(P:2010901 - A:2010901) + (P:2010902- A:2010902) + (P:2010903- A:2010903)"},
+    {"linea": 160, "cuenta": "ingresos percibidos x adelantado", "formula": "(P:2011400 - A:2011400)"},
+    {"linea": 165, "cuenta": "Otros", "formula": "(P:2011100 - A:2011100)+(P:2011200 - A:2011200)+(P:2011300 - A:2011300)+(P:2011310 - A:2011310)+(P:2011311 - A:2011311)"},
+    {"linea": 185, "cuenta": "otros acreedores C.P.", "formula": "(P:2010901 - A:2010901)"},
+    {"linea": 190, "cuenta": "<strong>PASIVOS CIRCULANTES</strong>", "formula": "135+145+156+160+165", "highlight": True},
+    {"linea": 195, "cuenta": "Deuda Financiera L.P.", "formula": "(P:2020100 - A:2020100)"},
+    {"linea": 210, "cuenta": "Ctas. X Pagar Relacionados", "formula": "(P:2020502 - A:2020502)+(P:2020503 - A:2020503)"},
+    {"linea": 205, "cuenta": "Otros", "formula": "(P:2020300 - A:2020300) + (P:2011600 - A:2011600)"},
+    {"linea": 225, "cuenta": "<strong>PASIVOS DE LARGO PLAZO</strong>", "formula": "195+205+210", "highlight": True},
+    {"linea": 230, "cuenta": "<strong>PASIVO EXIGIBLE</strong>", "formula": "190+225", "highlight": True},
+    {"linea": 235, "cuenta": "Capital Neto", "formula": "(P:2030100 - A:2030100)"},
+    {"linea": 275, "cuenta": "Ajustes", "formula": "(P:2030402 - A:2030402)+(P:2030401 - A:2030401)"},
+    {"linea": 265, "cuenta": "utilidad neta retenida", "formula": "(P:2030600 - A:2030600) + (P:2030800 - A:2030800)"},
+    {"linea": 270, "cuenta": "utilidad neta del periodo", "formula": "400"},
+    {"linea": 290, "cuenta": "<strong>total patrimonio neto</strong>", "formula": "235+265+270", "highlight": True},
+    {"linea": 295, "cuenta": "<strong>TOTAL PASIVOS</strong>", "formula": "230+290", "highlight": True},
+    {"linea": 999, "cuenta": "<strong>Cuadre</strong>", "formula": "126-295", "highlight": True}
+]

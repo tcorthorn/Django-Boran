@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h2>Regenerar tabla VentasConsulta</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="button btn btn-danger">🔁 Regenerar Tabla</button>
+  </form>
+
+  {% if mensaje %}
+    <p style="color: green;">{{ mensaje }}</p>
+  {% endif %}
+{% endblock %}

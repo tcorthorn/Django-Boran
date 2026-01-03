@@ -1,0 +1,10 @@
+{% extends "boran_app/base.html" %}
+
+{% block title %}Importar {{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="mb-3">{{ titulo }}</h2>
+    <div class="alert alert-info">Próximamente: Formulario de importación para <b>{{ titulo }}</b>.</div>
+    <a href="{% url 'home' %}" class="btn btn-secondary mt-3">⬅️ Volver al inicio</a>
+{% endblock %}

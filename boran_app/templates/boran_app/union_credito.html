@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Movimientos Unificados Credito</title>
+</head>
+<body>
+    <h1>Movimientos Unificados</h1>
+
+    <!-- Mostrar mensajes de éxito o error -->
+    {% if messages %}
+        <ul>
+        {% for message in messages %}
+            <li style="color: {% if message.tags == 'error' %}red{% else %}green{% endif %};">
+                {{ message }}
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+
+    <p>Registros actuales en la tabla: <strong>{{ total_registros }}</strong></p>
+
+    <!-- Cuando el usuario dé clic aquí, va a la URL 'cargar_union' -->
+    <form action="{% url 'cargar_union_credito' %}" method="post" style="margin-bottom: 20px;">
+        {% csrf_token %}
+        <button type="submit" style="padding: 10px 20px; font-size: 16px;">
+            Cargar Movimientos Unificados Credito
+        </button>
+    </form>
+
+    <!-- Opcional: puedes listar los primeros registros o enlace para ver JSON -->
+    <p>
+        <a href="{% url 'listado_union_credito' %}?ver=json" target="_blank">
+            Ver JSON (solo datos)
+        </a>
+    </p>
+</body>
+</html>

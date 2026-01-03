@@ -1,0 +1,138 @@
+{% extends "boran_app/base.html" %}
+{% block title %}Importar Datos - Borangora{% endblock %}
+
+{% block content %}
+<style>
+  .card { border: 1px solid #e3e6ea; border-radius: 10px; background: #fff; box-shadow: 0 1px 3px rgba(44,107,160,.07); }
+  .card-header { background: #e4edf4; color: #417690; font-weight: 600; font-size: 1.05em; border-bottom: 1px solid #e3e6ea; border-radius: 10px 10px 0 0; padding: .8rem 1rem; }
+  .card-body { padding: 1rem; }
+
+  .btn-admin { display:block; width:100%; border:none; background:#417690; color:#fff; border-radius:6px; font-weight:500; font-size:1rem; padding:.75rem .9rem; }
+  .btn-admin:hover { background:#2c6ba0; color:#fff; }
+
+  /* Cards y botones cómodos en móvil */
+  @media (max-width: 767.98px) {
+    h1.h3 { font-size: 1.25rem; }
+    .card-body { padding: .85rem; }
+    .btn-admin { padding: .7rem .9rem; }
+  }
+</style>
+
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 m-0">📥 Importar Datos desde Excel</h1>
+    <a href="{% url 'home' %}" class="btn btn-secondary">← Volver al Home</a>
+  </div>
+
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message|safe }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header">Acciones de importación</div>
+    <div class="card-body">
+      <!-- GRID RESPONSIVE: 1 col (sm), 2 col (md), 3 col (lg) -->
+      <div class="row g-2 g-sm-3">
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Ajuste de Inventario?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_ajuste_inventario' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Ajuste de Inventario</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Asientos Contables?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_asientos_contables' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Asientos Contables</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Catálogo de Productos?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_catalogo' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Catálogo de Productos</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Balance Inicial?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_balance_inicial' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Balance Inicial</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Entradas de Productos?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_entrada_productos' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Entradas de Productos</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Inventario Inicial?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_inventario_inicial' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Inventario Inicial</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Sueldos?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_sueldos' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Sueldos</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Ventas?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_ventas' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Ventas</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Otros Gastos?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_otros_gastos' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Otros Gastos</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Envios a Tienda?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_envios_a_tiendas' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Envios a Tiendas</button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Envios a Tienda?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'import_envios' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Envios </button>
+          </form>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <form class="form-importacion" data-mensaje="¿Está seguro de importar Inventario Inicial Tiendas?\nEscriba &quot;SI&quot; para continuar:" action="{% url 'importar_inventario_inicial_tiendas' %}" method="post">{% csrf_token %}
+            <button type="submit" class="btn btn-admin">Inventario Inicial Tiendas</button>
+          </form>
+        </div>
+
+        
+
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form.form-importacion').forEach(function(form) {
+      form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        var mensaje = form.getAttribute('data-mensaje') || '¿Está seguro de importar?\nEscriba "SI" para continuar:';
+        var r = prompt(mensaje);
+        if (r && r.trim().toUpperCase() === "SI") form.submit();
+        else alert("Importación cancelada.");
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Movimientos Unificados Débito</title>
+</head>
+<body>
+    <h1>Movimientos Unificados Débito</h1>
+
+    <!-- Mensajes de éxito/fracaso -->
+    {% if messages %}
+      <ul>
+        {% for message in messages %}
+          <li style="color: {% if message.tags == 'error' %}red{% else %}green{% endif %};">
+            {{ message }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <p>Registros actuales en la tabla débito: <strong>{{ total_registros }}</strong></p>
+
+    <!-- Aquí abrimos el form que hará POST a la URL “cargar_union_debito” -->
+    <form action="{% url 'cargar_union_debito' %}" method="post" style="margin-top: 20px;">
+        {% csrf_token %}
+        <button type="submit" style="padding: 10px 20px; font-size: 16px;">
+            Cargar Movimientos Unificados Débito
+        </button>
+    </form>
+</body>
+</html>

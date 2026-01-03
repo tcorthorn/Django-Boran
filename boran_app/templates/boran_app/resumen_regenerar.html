@@ -1,0 +1,13 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h2>Regenerar Suma de Créditos y Débitos</h2>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="button btn btn-info">🔁 Regenerar Resumen</button>
+  </form>
+
+  {% if mensaje %}
+    <p style="color: green;">{{ mensaje }}</p>
+  {% endif %}
+{% endblock %}

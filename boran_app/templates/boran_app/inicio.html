@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>Panel de Herramientas</h1>
+
+  <div style="display: flex; flex-direction: column; gap: 20px; max-width: 400px;">
+    <a href="{% url 'regenerar_consulta' %}" class="button btn btn-primary">🔁 Regenerar VentasConsulta</a>
+    <a href="{% url 'regenerar_resumenes' %}" class="button btn btn-info">📘 Regenerar Resumenes Crédito y Débito</a>
+    <a href="{% url 'listado_union_credito' %}" class="button btn btn-success">📊 Unión de Crédito</a>
+    <a href="{% url 'listado_union_debito' %}" class="button btn btn-warning">📈 Unión de Débito</a>
+    <a href="{% url 'exportar_resumen_excel' %}" class="button btn btn-outline-primary">
+  📤 Exportar Resumen a Excel</a>
+    <a href="{% url 'exportar_movimientos_excel' %}" class="button btn btn-outline-success">
+  📤 Exportar Movimientos Unificados a Excel (A–C / E–G)</a>
+  </div>
+{% endblock %}

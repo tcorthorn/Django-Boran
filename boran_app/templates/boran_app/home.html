@@ -1,0 +1,220 @@
+{% extends "boran_app/base.html" %}
+{% block title %}Inicio - Panel Borangora{% endblock %}
+{% block content %}
+
+<style>
+  body { background: #f5f5f5 !important; }
+
+  h1 {
+    color: #29495c;
+    font-weight: 600;
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: .5px;
+  }
+
+  .card {
+    border: 1px solid #e3e6ea;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(44,107,160,.07);
+    height: 100%;
+    display: flex; flex-direction: column;
+  }
+  .card-header {
+    background: #e4edf4; color: #417690; font-weight: 600;
+    font-size: 1.05em; border-bottom: 1px solid #e3e6ea;
+    border-radius: 10px 10px 0 0; padding: .8rem 1rem;
+  }
+  .card-body { padding: 1rem; display: flex; flex-direction: column; gap: .6rem; }
+
+  .btn-admin {
+    display: block; width: 100%; border: none;
+    background: #417690; color: #fff; border-radius: 6px;
+    font-weight: 500; font-size: 1rem; padding: .75rem .9rem;
+    margin-bottom: .5rem; transition: background .13s;
+  }
+  .btn-admin:hover, .btn-admin:focus { background: #2c6ba0; color: #fff; }
+  .btn-admin.secondary, .btn-admin.info { background: #e6eef3; color: #295283; } /* alias de .info */
+  .btn-admin.secondary:hover, .btn-admin.info:hover { background: #d0e2f0; color: #1a344b; }
+  .btn-admin.warning { background: #fff8e1; color: #ab7a00; }
+  .btn-admin.warning:hover { background: #ffe9ad; color: #7a6300; }
+  .btn-admin.success { background: #e6f1e6; color: #2c6b4b; }
+  .btn-admin.success:hover { background: #b9dbc2; color: #1a4330; }
+
+  .input-fecha-mini { min-height: 44px; } /* target táctil */
+  .alert { border-radius: 7px; font-size: 1em; margin-bottom: 16px; }
+
+  /* Responsive: 1 col (sm), 2 col (md), 3 col (lg) */
+  @media (max-width: 991.98px) { .card-header { font-size: 1em; } }
+  @media (max-width: 767.98px) {
+    h1 { font-size: 1.35rem; margin-bottom: 1.1rem; }
+    .card-body { padding: .85rem; }
+    .btn-admin { font-size: 1rem; padding: .7rem .9rem; }
+  }
+  @media (max-width: 575.98px) {
+    .container.py-4 { padding: 12px !important; }
+    .alert { font-size: .98em; }
+    label, .card-header { font-size: 1rem; }
+  }
+
+  /* Mobile full width + evitar zoom iOS en inputs */
+  html, body { height: auto; min-height: 100%; overflow-y: auto; overflow-x: hidden; }
+  @media (max-width: 575.98px){
+    .container { width: 100% !important; max-width: 100% !important; padding-left: 12px !important; padding-right: 12px !important; }
+    .row { margin-left: 0 !important; margin-right: 0 !important; }
+    .col { padding-left: 0 !important; padding-right: 0 !important; }
+    .card.h-100 { height: auto !important; }
+    input, select, textarea { font-size: 16px; }
+  }
+</style>
+
+<div class="container py-4">
+  <h1>Panel de BORANGORA</h1>
+
+  {% if messages %}
+    <div>
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message|safe }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- 1 col (sm), 2 col (md), 3 col (lg) -->
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 g-lg-4 mb-5">
+
+    <!-- BALANCE -->
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-header">⚙️ Balance</div>
+        <div class="card-body d-grid gap-2">
+
+          <form action="{% url 'balance_segun_fecha' %}" method="get">
+            <label for="fecha_corte_balance" class="mb-1"><b>Ver Balance General según fecha:</b></label>
+            <div class="d-flex flex-wrap gap-2 align-items-stretch">
+              <input type="date" id="fecha_corte_balance" name="fecha_corte" required class="input-fecha-mini form-control" style="flex:1 1 180px;">
+              <button type="submit" class="btn btn-admin success" style="flex:1 1 150px;">📆 Balance</button>
+            </div>
+          </form>
+
+          <form action="{% url 'resumen_balance_segun_fecha' %}" method="get">
+            <label for="fecha_corte_resumen" class="mb-1"><b>Ver Resumen e Indicadores según fecha:</b></label>
+            <div class="d-flex flex-wrap gap-2 align-items-stretch">
+              <input type="date" id="fecha_corte_resumen" name="fecha_corte" required class="input-fecha-mini form-control" style="flex:1 1 180px;">
+              <button type="submit" class="btn btn-admin success" style="flex:1 1 150px;">📊 Resumen Balance</button>
+            </div>
+          </form>
+
+          <form action="{% url 'resumen_financiero_segun_fecha' %}" method="get">
+            <label for="fecha_corte_financiero" class="mb-1"><b>Ver Resumen Financiero según fecha:</b></label>
+            <div class="d-flex flex-wrap gap-2 align-items-stretch">
+              <input type="date" id="fecha_corte_financiero" name="fecha_corte" required class="input-fecha-mini form-control" style="flex:1 1 180px;">
+              <button type="submit" class="btn btn-admin success" style="flex:1 1 150px;">📈 Resumen Financiero</button>
+            </div>
+          </form>
+
+          <form action="{% url 'actualizar_resumen_mensual' %}" method="get">{% csrf_token %}
+            <button class="btn btn-admin w-100 mb-2"> 🔎 Resultados Mensuales</button>
+          </form>
+          <form action="{% url 'actualizar_resultados_mensuales' %}" method="post">{% csrf_token %}
+            <button class="btn btn-admin w-100">🔎 Resultados Detallados</button>
+          </form>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- HERRAMIENTAS -->
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-header">📤 Herramientas de Gestión</div>
+        <div class="card-body d-grid gap-2">
+          <form action="{% url 'inventario_actual' %}" method="get">
+              <button class="btn btn-admin w-100">🔎 Ver Inventario</button>
+            </form>
+          <form action="{% url 'resumen_ventas_tiendas' %}" method="get">
+            <button class="btn btn-admin w-100">🔎 Resumen Ventas por Tienda</button>
+          </form>
+          <form action="{% url 'productos_rentables' %}" method="get">
+            <button class="btn btn-admin w-100">🔎 Productos más Rentables</button>
+          </form>
+          <form action="{% url 'inventario_tiendas' %}" method="get">
+            <input type="hidden" name="fecha_corte" value="{% now 'Y-m-d' %}">
+            <button class="btn btn-admin w-100">🔎 Inventario por Tienda y SKU</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPORTAR DATOS (solo botón que navega) -->
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-header">📥 Contabilidad</div>
+          <div class="card-body d-grid gap-2">
+          
+            <form action="{% url 'importar_datos' %}" method="get">
+              <input type="hidden" name="fecha_corte" value="{% now 'Y-m-d' %}">
+              <button class="btn btn-admin w-100">🔎 Ir a Base de datos</button>
+            </form>
+
+    <!-- VALIDAR CUENTA CONTABLE INGRESADA -->
+            <form action="{% url 'validar_plan_cuentas' %}" method="get">
+              <input type="hidden" name="fecha_corte" value="{% now 'Y-m-d' %}">
+              <button class="btn btn-admin w-100">🔎 Validar cuentas contables </button>
+            </form>
+
+      <!-- MOVIMIENTO CUENTA CONTABLE -->  
+            <form action="{% url 'movimientos_cuenta' %}" method="get">
+              <button class="btn btn-admin w-100">🔎 Movimientos por Cuenta</button>
+            </form>
+
+      <!-- MOVIMIENTOS POR FECHA (formato DD-MM-AA; validación en el servidor) -->
+            <form onsubmit="return false;">
+              <button type="button" class="btn btn-admin w-100"
+                onclick="(function(){
+                  var f = prompt('Ingresa la fecha (DD-MM-AA):');
+                  if(!f) return;
+                  // Normaliza separadores: admite -, /, ., y guiones “raros”
+                  f = (f||'').trim()
+                      .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g,'-')  // distintos guiones Unicode
+                      .replace(/\//g,'-')
+                      .replace(/\./g,'-')
+                      .replace(/\s+/g,'');  // quita espacios
+                  window.location.href = '{% url 'movimientos_por_fecha' %}?fecha=' + encodeURIComponent(f);
+                })();">
+                🔎 Movimientos por Fecha
+              </button>
+            </form>
+            
+      <!-- MOVIMIENTOS POR RANGO (formato DD-MM-AA; validación en el servidor) -->
+
+            <form onsubmit="return false;">
+              <button type="button" class="btn btn-admin w-100"
+                onclick="(function(){
+                  var d = prompt('Fecha DESDE (DD-MM-AA):'); if(d==null) return;
+                  var h = prompt('Fecha HASTA (DD-MM-AA):'); if(h==null) return;
+                  function norm(s){ return String(s||'').trim()
+                    .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g,'-')
+                    .replace(/\//g,'-').replace(/\./g,'-').replace(/\s+/g,''); }
+                  d = norm(d); h = norm(h);
+                   window.location.href = '{% url 'movimientos_por_rango' %}?desde=' + encodeURIComponent(d) + '&hasta=' + encodeURIComponent(h);
+                })();">
+                🔎 Movimientos por Rango Fechas
+              </button>
+            </form>
+
+
+
+          </div>
+      </div>
+  </div> <!-- /.row -->
+</div>
+
+<!--
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+-->
+
+{% endblock %}

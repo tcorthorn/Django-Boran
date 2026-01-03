@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Movimientos por Fecha</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background:#f5f5f5; }
+    .page-title { color:#29495c; font-weight:600; font-size:1.6rem; letter-spacing:.3px; }
+    .card { border:1px solid #e3e6ea; border-radius:12px; background:#fff; box-shadow:0 1px 3px rgba(44,107,160,.07); margin-bottom:1.25rem; }
+    .card-header { background:#e4edf4; color:#417690; font-weight:600; }
+    .table thead th { white-space:nowrap; }
+    .thead-sticky th { position:sticky; top:0; background:#f8fafc; z-index:2; }
+    .table-colgroup { background:#f1f5f9; font-weight:700; text-transform:uppercase; font-size:.85rem; }
+    .muted { color:#6b7280; }
+    .toolbar { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .toolbar .btn { border-radius:10px; }
+  </style>
+</head>
+<body>
+  <div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="page-title m-0">📅 Movimientos por Fecha</h1>
+      <div class="toolbar">
+        <a href="/" class="btn btn-outline-secondary">← Volver al Home</a>
+        {% if hubo_busqueda and not error_msg and rows %}
+          <a class="btn btn-success" href="{% url 'exportar_movimientos_fecha_excel' %}?fecha={{ fecha_valor|urlencode }}">⬇️ Exportar Excel</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Búsqueda (DD-MM-AA) -->
+    <div class="card">
+      <div class="card-header">Buscar</div>
+      <div class="card-body">
+        <form class="row gy-2 gx-2" method="get" action="{% url 'movimientos_por_fecha' %}">
+          <div class="col-12 col-md-4">
+            <label for="id_fecha" class="form-label">Fecha (DD-MM-AA)</label>
+            <input id="id_fecha" name="fecha" type="text" class="form-control"
+                    <input id="id_fecha" name="fecha" type="text" class="form-control"
+                            placeholder="DD-MM-AA" inputmode="numeric" value="{{ fecha_valor }}">
+
+
+          </div>
+          <div class="col-12 col-md-3 align-self-end">
+            <button class="btn btn-primary w-100">Consultar</button>
+          </div>
+          {% if hubo_busqueda %}
+          <div class="col-12 col-md-3 align-self-end">
+            <a class="btn btn-outline-secondary w-100" href="{% url 'movimientos_por_fecha' %}">Limpiar</a>
+          </div>
+          {% endif %}
+        </form>
+        {% if error_msg %}
+          <div class="alert alert-danger mt-3 mb-0">{{ error_msg }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if hubo_busqueda and not error_msg %}
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Resultados</span>
+        <div>
+          <span class="badge text-bg-success me-2">Σ Débitos: {{ total_debitos|default:0|floatformat:0 }}</span>
+          <span class="badge text-bg-danger">Σ Créditos: {{ total_creditos|default:0|floatformat:0 }}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if rows %}
+        <div class="table-responsive">
+          <div class="row g-3">
+  <!-- TABLA DÉBITOS -->
+  <div class="col-12 col-lg-6">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle table-bordered">
+        <thead class="thead-sticky">
+          <tr class="table-colgroup text-center">
+            <th colspan="5">DÉBITOS</th>
+          </tr>
+          <tr>
+            <th>Fecha</th>
+            <th>Cuenta Débito</th>
+            <th class="text-end">Monto Débito</th>
+            <th>Comentario</th>
+            <th>Tabla Origen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if debitos %}
+            {% for d in debitos %}
+            <tr>
+              <td>{{ d.fecha|date:"d-m-Y"|default:"—" }}</td>
+              <td>{{ d.cta_debito|default:"—" }}</td>
+              <td class="text-end">
+                {% if d.monto_debito is not None %}{{ d.monto_debito|floatformat:0 }}{% else %}<span class="muted">—</span>{% endif %}
+              </td>
+              <td>
+                {% if d.texto_coment and d.texto_coment != 'nan' %}{{ d.texto_coment }}{% endif %}
+              </td>
+              <td>{{ d.tabla_origen|default:"" }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="5" class="text-muted">Sin débitos en esta fecha.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TABLA CRÉDITOS -->
+  <div class="col-12 col-lg-6">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle table-bordered">
+        <thead class="thead-sticky">
+          <tr class="table-colgroup text-center">
+            <th colspan="5">CRÉDITOS</th>
+          </tr>
+          <tr>
+            <th>Fecha</th>
+            <th>Cuenta Crédito</th>
+            <th class="text-end">Monto Crédito</th>
+            <th>Comentario</th>
+            <th>Tabla Origen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if creditos %}
+            {% for c in creditos %}
+            <tr>
+              <td>{{ c.fecha|date:"d-m-Y"|default:"—" }}</td>
+              <td>{{ c.cta_credito|default:"—" }}</td>
+              <td class="text-end">
+                {% if c.monto_credito is not None %}{{ c.monto_credito|floatformat:0 }}{% else %}<span class="muted">—</span>{% endif %}
+              </td>
+              <td>
+                {% if c.texto_coment and c.texto_coment != 'nan' %}{{ c.texto_coment }}{% endif %}
+              </td>
+              <td>{{ c.tabla_origen|default:"" }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="5" class="text-muted">Sin créditos en esta fecha.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+        </div>
+        {% else %}
+          <div class="text-muted">No se encontraron movimientos para la fecha <strong>{{ fecha_valor }}</strong>.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <script>
+    // Ayuda: autoinserta guiones en DD-MM-AA al tipear
+    (function(){
+      const f = document.getElementById('id_fecha');
+      if (!f) return;
+      f.addEventListener('input', function(){
+        let v = f.value.replace(/[^0-9]/g,'').slice(0,8); // hasta DDMMYY
+        if (v.length >= 5) f.value = v.slice(0,2)+'-'+v.slice(2,4)+'-'+v.slice(4);
+        else if (v.length >= 3) f.value = v.slice(0,2)+'-'+v.slice(2);
+        else f.value = v;
+      });
+      f.focus();
+      f.select();
+    })();
+  </script>
+</body>
+</html>

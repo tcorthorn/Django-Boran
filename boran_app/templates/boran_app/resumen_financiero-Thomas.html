@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<head>
+    <title>Resumen Financiero</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; font-size: 17px; }
+        th, td { border: 1px solid #ccc; padding: 7px 14px; }
+        th { background: #e8f3fa; font-size: 19px;}
+        .totales, .highlight { background: #e3f1fd; font-weight: bold; font-size: 18px; }
+        .center-title { text-align: center; font-size: 2em; margin: 18px 0 16px 0; }
+        .export-btn { float:right; margin: 10px 10px 20px 10px; padding:8px 18px; border-radius:6px; background:#1976d2; color:#fff; border:none; cursor:pointer;}
+        .export-btn:hover { background: #145ca7; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .text-center { text-align: center; }
+        #tabla-indicadores td:last-child { text-align: right; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2 class="center-title">Resumen Financiero 2025</h2>
+    <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 20px; justify-content: flex-end;">
+        <form action="{% url 'home' %}" method="get" style="display:inline;">
+            <button type="submit" class="export-btn">
+                🏠 Volver al inicio
+            </button>
+        </form>
+        <button class="export-btn" onclick="exportResumenExcel()" type="button">
+            📥 Exportar a Excel
+        </button>
+    </div>
+
+    <table id="resumen-table">
+        <thead>
+            <tr>
+                <th class="text-right">Linea</th>
+                <th class="text-center">ACTIVO</th>
+                <th class="text-center">Monto</th>
+                <th class="text-right">Linea</th>
+                <th class="text-center">PASIVO</th>     <!-- <- mueve PASIVO aquí -->
+                <th class="text-center">Monto</th>
+                <th class="text-right">Linea</th>
+                <th class="text-center">RESULTADO</th>  <!-- <- mueve RESULTADO al final -->
+                <th class="text-center">Monto</th>
+            </tr>
+        </thead>
+        <tbody id="tbody-resumen"></tbody>
+    </table>
+
+    <!-- TABLA DE INDICADORES FINANCIEROS -->
+    <br>
+    <table id="tabla-indicadores" style="width: 480px; margin: 30px auto 10px auto; background: #f8fbfd;">
+        <thead>
+            <tr>
+                <th colspan="2" style="background:#e3f1fd; text-align:left; font-size:17px;">INDICADORES FINANCIEROS</th>
+                <th style="background:#e3f1fd; font-size:17px;">2025</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="2">EBITDA</td>
+                <td id="ind-ebitda"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Margen Bruto / Ventas (%)</td>
+                <td id="ind-margen-bruto"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Resultado Operacional Bruto / Ventas (%)</td>
+                <td id="ind-operacional"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Act. Circ. / Pas. Circ. (vcs)</td>
+                <td id="ind-act-circ"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Utilidad / Ventas (%)</td>
+                <td id="ind-utilidad"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Permanencia Existencias (ds)</td>
+                <td id="ind-existencias"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Permanencia Ctas. X Cobrar (ds)</td>
+                <td id="ind-cxc"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Permanencia Ctas. X Pagar (ds)</td>
+                <td id="ind-cxp"></td>
+            </tr>
+            <tr>
+                <td colspan="2">EBITDA / Gastos Financieros (vcs)</td>
+                <td id="ind-ebitda-gf"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Deudas financieras / EBITDA (vcs)</td>
+                <td id="ind-deuda-ebitda"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Pasivo Exigible / Patrimonio Neto (vcs)</td>
+                <td id="ind-pe-pn"></td>
+            </tr>
+            <tr>
+                <td colspan="2">Pasivo Exigible / Patr. Neto+ Int. Min. (vcs)</td>
+                <td id="ind-pe-pnim"></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        // 1. Matriz financiera desde Django
+        const matriz = {{ matriz_js|safe }};
+
+        // 2. Tus arrays (edita en tu JS/Python)
+        const resumenActivo = [
+            { linea: 16, cuenta: 'Efectivo y Equivalente al Efectivo', formula: '(A:1010100 - P:1010100)' },
+
+            { linea: 11, cuenta: 'Activos Financieros', formula: '(A:1010200 - P:1010200)+(A:1010300 - P:1010300)' },
+            
+            { linea: 21, cuenta: 'Cuentas por Cobrar del Giro', formula: '(A:1010400-P:1010400)+(A:1010500-P:1010500)+(A:1010501-P:1010501)+(A:1010502-P:1010502)'+
+            '+(A:1010503-P:1010503)+(A:1010600-P:1010600)+(A:1010700-P:1010700)' },
+
+            { linea: 22, cuenta: 'Ctas x Cobrar Relacionados', formula:  '(A:1010800-P:1010800)' },
+            { linea: 41, cuenta: 'Existencias', formula: '(A:1010300-P:1010300)+(A:1010301-P:1010301)+(A:1010302-P:1010302)+(A:1010303-P:1010303)+(A:1010304-P:1010304)'+
+            '+(A:1010306-P:1010306)+(A:1010306-P:1010306)+(A:1010900-P:1010900)+(A:1010500-P:1010500)+(A:1010901-P:1010901)' },
+
+            { linea: 23, cuenta: 'Otros', formula:  '(A:1011000-P:101000)+(A:1011501-P:1011501)+(A:1011001-P:1011001)'+
+            '+(A:1011100-P:101100)+(A:1011101-P:1011101)+(A:1011102-P:101102)+(A:1011103-P:101103)'+
+            '+(A:120300-P:1020300)+(A:120301-P:1020301)+(A:120302-P:1020302)+(A:120303-P:1020303)' },
+
+            { linea: 40, cuenta: 'ACTIVOS CIRCULANTES', formula: '11+16+21+22+23+41', highlight: true },
+           
+            { linea: 71, cuenta: 'Activo Fijo Neto', formula: '(A:1020370-P:1020370)+(A:1020380-P:1020380)+(A:1020400-P:1020400)+(A:1020401-P:1020401)+(A:1020500-P:1020500)'+
+            '-(A:1020600-P:1020600) '},
+           
+            { linea: 100, cuenta: 'Ctas x Cobrar a Largo Plazo', formula: '(A:1030500-P:1030500)+(A:1030700-P:1030700)' },
+            { linea: 106, cuenta: 'Ctas x Cobrar Relacionados', formula: '(A:1030600-P:1030600)' },
+            { linea: 111, cuenta: 'Inversiones en Soc.', formula: '(A:1030100-P:1030100)+(A:1030200-P:1030200)(A:1030300-P:1030300)(A:1030400-P:1030400)' },
+            { linea: 112, cuenta: 'Godwill', formula: '(A:1030800-P:1030800)' },
+            { linea: 121, cuenta: 'Otros Intangibles', formula: '' },
+            { linea: 122, cuenta: 'Otros', formula: '' },
+            { linea: 122, cuenta: 'Inversion Inicial', formula: '(A:1031000-P:1031000)' },
+            { linea: 125, cuenta: '<strong>ACTIVOS DE LARGO PLAZO</strong>', formula: '71+100+106+111+112+121+122', highlight: true },
+            { linea: 126, cuenta: '<strong>TOTAL DE ACTIVOS</strong>', formula: '40+125', highlight: true }
+            
+            ];
+
+        const resumenResultado = [
+            { linea: 310, cuenta: 'Ventas', formula: 'G:3010101+G:3010111' },
+            { linea: 315, cuenta: 'Costo de Venta', formula: 'Pe:3010200' },
+            { linea: 320, cuenta: 'Margen Bruto', formula: '310-315', highlight: true },
+            { linea: 324, cuenta: 'Gastos Comercialización', formula: 'Pe:3010201+Pe:3010120+Pe:3010130+Pe:3010203+Pe:3010212+Pe:3010213+Pe:3010214+Pe:3010215' },
+            { linea: 325, cuenta: 'Gastos de Publicidad y Marketing', formula: 'Pe:3010205' },
+            { linea: 326, cuenta: 'Gastos arriendos Comisiones Tiendas', formula: 'Pe:3010211' },
+            { linea: 327, cuenta: 'Gastos de Envíos Adicionales', formula: 'Pe:3010202' },
+            { linea: 330, cuenta: 'Gastos de Administración', formula: 'Pe:3010300' },
+            { linea: 335, cuenta: 'Resultado Operacional Bruto', formula: '320-324-325-326-327-330', highlight: true },
+            { linea: 340, cuenta: 'Gastos Financieros', formula: 'Pe:3020200' },
+            { linea: 90, cuenta:  'Depreciación del Ejercicio (-)', formula: 'Pe:3010400' },
+            { linea: 350, cuenta: 'Resultado Oper. Neto', formula: '335-340-90' , highlight: true },
+            { linea: 355, cuenta: 'Utilidad (pérd.) No Operacional', formula: 'G:3020300 + G:3020100 + G:3020200-Pe:3020400-Pe:3020500 - Pe:3020600' },
+            { linea: 358, cuenta: 'Ajuste Monetario', formula: 'Pe:3021100' },
+            { linea: 385, cuenta: 'Impuesto a la Renta', formula: 'Pe:3010100' },
+            { linea: 387, cuenta: 'Ajustes', formula: '' },
+            { linea: 400, cuenta: '<strong>UTILIDAD NETA DEL PERIODO</strong>', formula: '350-355-358-385-387', highlight: true }
+        ];
+ 
+
+        const resumenPasivo = [
+            { linea: 135, cuenta: 'Deuda Financiera C.P.', formula: '(P:2010100 - A:2010100) + (P:2010200 - A:2010200) + (P:2010500 - A:2010500)' },
+            { linea: 145, cuenta: 'Ctas x Pagar del Giro', formula: '(P:2010300 - A:2010300) + (P:2010400 - A:2010400) + (P:2010600 - A:2010600)'+
+            '+ (P:2010700 - A:2010700) + (P:2010701 - A:2010701) + (P:2010702 - A:2010702) + (P:2010703 - A:2010703) + (P:2010704 - A:2010704)'+
+            '+ (P:2010800 - A:2010800) + (P:2010900- A:2010900)  '},
+            { linea: 156, cuenta: 'Ctas. X Pagar Relacionados', formula: ' (P:2010901 - A:2010901) + (P:2010902- A:2010902) + (P:2010903- A:2010903) ' },  
+            { linea: 160, cuenta: 'ingresos percibidos x adelantado', formula: '(P:2011400 - A:2011400)' },
+            { linea: 165, cuenta: 'Otros', formula: '(P:2011100 - A:2011100)+(P:2011200 - A:2011200)+(P:2011300 - A:2011300)+(P:2011310 - A:2011310)'+
+            ' + (P:2011311 - A:2011311) ' },
+            { linea: 190, cuenta: '<strong>PASIVOS CIRCULANTES</strong>', formula: '135+145+156+160+165', highlight: true },
+            { linea: 195, cuenta: 'Deuda Financiera L.P.', formula: '(P:2020100 - A:2020100)' },
+            { linea: 210, cuenta: 'Ctas. X Pagar Relacionados', formula: '(P:2020502 - A:2020502)+(P:2020503 - A:2020503)' },
+            { linea: 205, cuenta: 'Otros', formula: '(P:2020300 - A:2020300) + (P:2011600 - A:2011600)' },
+            { linea: 225, cuenta: '<strong>PASIVOS DE LARGO PLAZO</strong>', formula: '195+205+210', highlight: true },
+            { linea: 230, cuenta: '<strong>PASIVO EXIGIBLE</strong>', formula: '190+225', highlight: true },
+            { linea: 235, cuenta: 'Capital Neto', formula: '(P:2030100 - A:2030100)' },
+            { linea: 275, cuenta: 'Ajustes', formula: '(P:2030402 - A:2030402)+(P:2030401 - A:2030401)' },
+            { linea: 265, cuenta: 'utilidad neta retenida', formula: '(P:2030600 - A:2030600) + (P:2030800 - A:2030800)' },
+            { linea: 270, cuenta: 'utilidad neta del periodo', formula: '400' },
+            { linea: 290, cuenta: '<strong>total patrimonio neto</strong>', formula: '235+265+270', highlight: true },
+            { linea: 295, cuenta: '<strong>TOTAL PASIVOS</strong>', formula: '230+290', highlight: true },
+            { linea: 999, cuenta: '<strong>Cuadre</strong>', formula: '126-295', highlight: true } 
+        ];
+        // --- Funciones de cálculo y render igual que balance ---
+
+        function evalFormula(formula, matriz, lineaLookup = {}, resultadoValoresPorLinea = {}, valoresPorLineaActivo = {}) {
+            if (!formula || !formula.trim()) return 0;
+            if (/^\d+$/.test(formula.trim())) {
+                if (resultadoValoresPorLinea && resultadoValoresPorLinea[formula.trim()] !== undefined) {
+                    return resultadoValoresPorLinea[formula.trim()];
+                }
+                if (valoresPorLineaActivo && valoresPorLineaActivo[formula.trim()] !== undefined) {
+                    return valoresPorLineaActivo[formula.trim()];
+                }
+                if (lineaLookup && lineaLookup[formula.trim()] !== undefined) {
+                    return lineaLookup[formula.trim()];
+                }
+                return 0;
+            }
+            let expr = formula.replace(/([APG][e]?):(\d{5,7})/g, (match, pref, code) => {
+                let key = `${pref}:${code}`;
+                return matriz[key] !== undefined ? matriz[key] : '0';
+            });
+            expr = expr.replace(/\b(\d{2,4})\b/g, (match, num) => {
+                if (resultadoValoresPorLinea && resultadoValoresPorLinea[num] !== undefined) return resultadoValoresPorLinea[num];
+                if (valoresPorLineaActivo && valoresPorLineaActivo[num] !== undefined) return valoresPorLineaActivo[num];
+                if (lineaLookup && lineaLookup[num] !== undefined) return lineaLookup[num];
+                return match;
+            });
+            if (/[^0-9\+\-\*\/\(\)\.\s]/.test(expr)) {
+                return 0;
+            }
+            try {
+                return eval(expr) || 0;
+            } catch {
+                return 0;
+            }
+        }
+
+        function calcularResumen(resumenArr, matriz, resultadoValoresPorLinea = {}, valoresPorLineaActivo = {}) {
+            const resultados = {};
+            resumenArr.forEach(row => {
+                const lineaLookup = Object.assign({}, resultados);
+                const valor = evalFormula(row.formula, matriz, lineaLookup, resultadoValoresPorLinea, valoresPorLineaActivo);
+                resultados[row.linea] = valor;
+                row.resultado = valor;
+            });
+            return resumenArr;
+        }
+
+        
+
+        function formatMonto(val) {
+            if (val === undefined || val === null) return '';
+            return Number(Math.round(val)).toLocaleString('es-CL', {maximumFractionDigits: 0});
+        }
+
+       function renderResumen() {
+            const tbody = document.getElementById('tbody-resumen');
+            tbody.innerHTML = '';
+            const maxRows = Math.max(resumenActivo.length, resumenPasivo.length, resumenResultado.length);
+            for (let i = 0; i < maxRows; i++) {
+                const ra = resumenActivo[i] || {};
+                const rp = resumenPasivo[i] || {};
+                const rr = resumenResultado[i] || {};
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-right">${ra.linea || ''}</td>
+                    <td class="text-left ${ra.highlight ? 'highlight' : ''}">${ra.cuenta || ''}</td>
+                    <td class="text-right ${ra.highlight ? 'highlight' : ''}">${formatMonto(ra.resultado)}</td>
+
+                    <td class="text-right">${rp.linea || ''}</td>
+                    <td class="text-left ${rp.highlight ? 'highlight' : ''}">${rp.cuenta || ''}</td>
+                    <td class="text-right ${rp.highlight ? 'highlight' : ''}">${formatMonto(rp.resultado)}</td>
+
+                    <td class="text-right">${rr.linea || ''}</td>
+                    <td class="text-left ${rr.highlight ? 'highlight' : ''}">${rr.cuenta || ''}</td>
+                    <td class="text-right ${rr.highlight ? 'highlight' : ''}">${formatMonto(rr.resultado)}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+
+        function exportResumenExcel() {
+            // 1. Resumen Financiero
+            var resumenTable = document.getElementById('resumen-table');
+            var wb = XLSX.utils.table_to_book(resumenTable, {sheet: "Resumen Financiero"});
+            // 2. Indicadores Financieros
+            var tablaInd = document.getElementById('tabla-indicadores');
+            if (tablaInd) {
+                var wsInd = XLSX.utils.table_to_sheet(tablaInd);
+                XLSX.utils.book_append_sheet(wb, wsInd, "Indicadores Financieros");
+            }
+            XLSX.writeFile(wb, 'ResumenFinanciero.xlsx');
+        }
+
+        // --- Calcula los resúmenes y renderiza la tabla ---
+        calcularResumen(resumenActivo, matriz);
+        const valoresPorLineaActivo = {};
+        resumenActivo.forEach(row => { valoresPorLineaActivo[row.linea] = row.resultado; });
+        calcularResumen(resumenResultado, matriz);
+        const resultadoValoresPorLinea = {};
+        resumenResultado.forEach(row => { resultadoValoresPorLinea[row.linea] = row.resultado; });
+        calcularResumen(resumenPasivo, matriz, resultadoValoresPorLinea, valoresPorLineaActivo);
+        renderResumen();
+
+        // Utilidades de búsqueda
+    function buscarResultado(linea) {
+        let row = resumenResultado.find(r => r.linea === linea);
+        return row ? row.resultado : 0;
+    }
+    function buscarActivo(linea) {
+        let row = resumenActivo.find(r => r.linea === linea);
+        return row ? row.resultado : 0;
+    }
+    function buscarPasivo(linea) {
+        let row = resumenPasivo.find(r => r.linea === linea);
+        return row ? row.resultado : 0;
+    }
+
+    function setIndicador(id, valor, isPercent = false, decimals = 0) {
+        let txt = "";
+        if (valor == null || valor === "") {
+            txt = '';
+        } else if (isPercent) {
+            txt = Number(valor).toFixed(decimals) + "%";
+        } else {
+            txt = Number(valor).toLocaleString('es-CL', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+        document.getElementById(id).innerHTML = `<b>${txt}</b>`;
+    }
+
+    // Calcula y muestra los indicadores
+    function renderIndicadores() {
+        // Ejemplo de cálculos, ajusta si tus líneas cambian
+        let ventas = buscarResultado(310);
+        let margenBruto = buscarResultado(320);
+        let resOperacional = buscarResultado(335);
+        let utilidadNeta = buscarResultado(400);
+        let ebitda = buscarResultado(340); // Ajusta si tu EBITDA está en otra línea
+        let activoCirc = buscarActivo(65);
+        let pasivoCirc = buscarPasivo(190);
+        let existencias = buscarActivo(40);
+        let costoVenta = buscarResultado(315);
+        let cxc = buscarActivo(20);
+        let cxp = buscarPasivo(185);
+        let gastosFinancieros = buscarResultado(340); // Ajusta si no es 340
+        let deudaCP = buscarPasivo(135);
+        let deudaLP = buscarPasivo(195);
+        let pasivoExigible = buscarPasivo(230);
+        let patrimonioNeto = buscarPasivo(290);
+        let interesMin = buscarPasivo(232);
+
+        setIndicador('ind-ebitda', resOperacional);
+        setIndicador('ind-margen-bruto', ventas ? 100 * margenBruto / ventas : 0, true,1);
+        setIndicador('ind-operacional', ventas ? 100 * resOperacional / ventas : 0, true,1);
+        setIndicador('ind-act-circ', pasivoCirc ? (activoCirc / pasivoCirc) : 0, false, 1);
+        setIndicador('ind-utilidad', ventas ? 100 * utilidadNeta / ventas : 0, false,1);
+        setIndicador('ind-existencias', costoVenta ? Math.round((existencias / costoVenta) * 365) : '');
+        setIndicador('ind-cxc', ventas ? Math.round((cxc / ventas) * 365) : '');
+        setIndicador('ind-cxp', costoVenta ? Math.round((cxp / costoVenta) * 365) : '');
+        setIndicador('ind-ebitda-gf', gastosFinancieros ? (resOperacional / gastosFinancieros) : 0, false, 1);
+        setIndicador('ind-deuda-ebitda', ebitda ? ((deudaCP + deudaLP) / ebitda).toFixed(1) : '');
+        setIndicador('ind-pe-pn', patrimonioNeto ? (pasivoExigible / patrimonioNeto) : 0, false, 1);
+        setIndicador('ind-pe-pnim', patrimonioNeto + interesMin ? (pasivoExigible / (patrimonioNeto + interesMin)) : 0, false, 1);
+    }
+
+    // Ejecuta después de renderResumen:
+    renderIndicadores();
+    </script>
+</body>
+</html>   
+       

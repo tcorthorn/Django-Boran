@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{% load humanize %}
+
+<h2 class="mb-4 text-center">Productos Más Rentables</h2>
+<div class="row mb-3">
+    <div class="col-md-6">
+        <form method="get" class="d-flex">
+            <input type="text" name="q" class="form-control me-2" placeholder="Buscar código, categoría o producto" value="{{ q }}">
+            <button type="submit" class="btn btn-outline-secondary">Buscar</button>
+        </form>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="{% url 'exportar_productos_excel' %}" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+        </a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle border rounded">
+       <thead class="table-dark">
+        <tr>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=codigo_producto&dir={% if sort == 'codigo_producto' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Código
+                    {% if sort == 'codigo_producto' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=categoria&dir={% if sort == 'categoria' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Categoría
+                    {% if sort == 'categoria' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=producto&dir={% if sort == 'producto' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Producto
+                    {% if sort == 'producto' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=cantidad&dir={% if sort == 'cantidad' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Cantidad Vendida
+                    {% if sort == 'cantidad' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=venta_total&dir={% if sort == 'venta_total' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Venta Total
+                    {% if sort == 'venta_total' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=costo_total&dir={% if sort == 'costo_total' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Costo Total
+                    {% if sort == 'costo_total' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=utilidad_bruta_total&dir={% if sort == 'utilidad_bruta_total' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Utilidad Bruta
+                    {% if sort == 'utilidad_bruta_total' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="text-white" href="?q={{ q }}&sort=margen_bruto&dir={% if sort == 'margen_bruto' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    Margen Bruto (%)
+                    {% if sort == 'margen_bruto' %}
+                        {% if direction == 'asc' %}▲{% else %}▼{% endif %}
+                    {% endif %}
+                </a>
+            </th>
+        </tr>
+       </thead>
+       <tbody>
+            {% for p in productos_page %}
+            <tr>
+                <td>{{ p.codigo_producto }}</td>
+                <td>{{ p.categoria }}</td>
+                <td>{{ p.producto }}</td>
+                <td>{{ p.cantidad|intcomma|default:"0" }}</td>
+                <td>{{ p.venta_total|floatformat:0|intcomma|default:"0" }}</td>
+                <td>{{ p.costo_total|floatformat:0|intcomma|default:"0" }}</td>
+                <td>{{ p.utilidad_bruta_total|floatformat:0|intcomma|default:"0" }}</td>
+                <td>{{ p.margen_bruto|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center">Sin resultados</td></tr>
+            {% endfor %}
+            <!-- Totales de la página actual -->
+            <tr class="table-info fw-bold">
+                <td colspan="3" class="text-end">Totales de esta página:</td>
+                <td>{{ total_cantidad|intcomma|default:"0" }}</td>
+                <td>{{ total_venta|floatformat:0|intcomma|default:"0" }}</td>
+                <td>{{ total_costo|floatformat:0|intcomma|default:"0" }}</td>
+                <td>{{ total_utilidad|floatformat:0|intcomma|default:"0" }}</td>
+                <td></td>
+            </tr>
+            <!-- Totales globales -->
+            <tr class="table-success fw-bold">
+                <td colspan="3" class="text-end">Totales globales del filtro:</td>
+                <td>{{ global_total_cantidad|intcomma|default:"0" }}</td>
+                <td>{{ global_total_venta|floatformat:0|intcomma|default:"0" }}</td>
+                <td>{{ global_total_costo|floatformat:0|intcomma|default:"0" }}</td>
+                <td>{{ global_total_utilidad|floatformat:0|intcomma|default:"0" }}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginación -->
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if productos_page.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ q }}&sort={{ sort }}&dir={{ direction }}&page=1">Primero</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?q={{ q }}&sort={{ sort }}&dir={{ direction }}&page={{ productos_page.previous_page_number }}">Anterior</a>
+            </li>
+        {% else %}
+            <li class="page-item disabled"><span class="page-link">Primero</span></li>
+            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+        {% endif %}
+        <li class="page-item active">
+            <span class="page-link">{{ productos_page.number }} / {{ productos_page.paginator.num_pages }}</span>
+        </li>
+        {% if productos_page.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ q }}&sort={{ sort }}&dir={{ direction }}&page={{ productos_page.next_page_number }}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?q={{ q }}&sort={{ sort }}&dir={{ direction }}&page={{ productos_page.paginator.num_pages }}">Último</a>
+            </li>
+        {% else %}
+            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+            <li class="page-item disabled"><span class="page-link">Último</span></li>
+        {% endif %}
+    </ul>
+</nav>
+<div class="mt-4">
+    <a href="{% url 'home' %}" class="btn btn-outline-primary">Volver al inicio</a>
+</div>
+{% endblock %}
+
+

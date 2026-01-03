@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+  <h2>Exportar Movimientos Unificados</h2>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="button btn btn-info">
+      📤 Exportar a hoja “Datos” de GestiónBORAN V1.xlsm
+    </button>
+  </form>
+{% endblock %}
