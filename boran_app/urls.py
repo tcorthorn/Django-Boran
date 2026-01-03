@@ -7,7 +7,8 @@ from .views import home
 urlpatterns = [
     path('', views.home, name='home'),
     
-    # Cambiar año fiscal
+    # Cambiar año fiscal (dos rutas: nueva y alias para compatibilidad)
+    path('set-panel-year/', views.set_panel_year, name='set_panel_year'),
     path('cambiar-anno-fiscal/', views.cambiar_anno_fiscal, name='cambiar_anno_fiscal'),
     
     # Generar Balance Inicial para nuevo año

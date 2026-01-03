@@ -36,57 +36,98 @@ from django.shortcuts import render
 from .models import ResultadoMensualDetalle
 
 # ——————————————————————————————————————————————————————————————
-#   FUNCIÓN AUXILIAR PARA OBTENER FECHAS DEL AÑO FISCAL
+#   MANEJO DE AÑO FISCAL (IGUAL QUE PANEL-BRONZ)
 # ——————————————————————————————————————————————————————————————
 
+PANEL_YEAR_CHOICES = (2025, 2026)
+
+
+def _get_default_panel_year() -> int:
+    """Devuelve el año por defecto (año actual si está en las opciones)."""
+    today = date.today()
+    if today.year in PANEL_YEAR_CHOICES:
+        return today.year
+    return PANEL_YEAR_CHOICES[0]
+
+
+def get_panel_year(request) -> int:
+    """Obtiene el año del panel desde la sesión."""
+    year = request.session.get('panel_year')
+    if year is None or int(year) not in PANEL_YEAR_CHOICES:
+        year = _get_default_panel_year()
+        request.session['panel_year'] = year
+    return int(year)
+
+
+def get_panel_date_range(request):
+    """
+    Obtiene el rango de fechas para el año seleccionado.
+    Si es el año actual, end_date es hoy. Si no, es 31/12 del año.
+    """
+    year = get_panel_year(request)
+    start_date = date(year, 1, 1)
+    today = date.today()
+    if year == today.year:
+        end_date = today
+    else:
+        end_date = date(year, 12, 31)
+    return year, start_date, end_date
+
+
+def regenerate_financial_tables(start_date, end_date):
+    """Regenera todas las tablas financieras para el rango de fechas dado."""
+    from .utils import regenerar_ventas_consulta
+    regenerar_ventas_consulta(start_date=start_date, end_date=end_date)
+    poblar_movimientos_unificados_debito(start_date=start_date, end_date=end_date)
+    poblar_movimientos_unificados_credito(start_date=start_date, end_date=end_date)
+    regenerar_resumenes_credito_debito()
+
+
+# Alias para compatibilidad con código existente
 def obtener_fechas_anno_fiscal(request):
-    """
-    Obtiene las fechas de inicio y fin del año fiscal desde la sesión.
-    Por defecto usa el año actual si no hay año fiscal configurado.
-    Retorna: (fecha_inicio, fecha_fin, anno_fiscal)
-    """
-    anno_actual = date.today().year
-    anno_fiscal = request.session.get('anno_fiscal', anno_actual)
-    
-    fecha_inicio = date(anno_fiscal, 1, 1)
-    fecha_fin = date(anno_fiscal, 12, 31)
-    
-    return fecha_inicio, fecha_fin, anno_fiscal
+    """Alias de get_panel_date_range para compatibilidad."""
+    return get_panel_date_range(request)
+
 
 def regenerar_tablas_financieras(request):
-    """
-    Función auxiliar que regenera todas las tablas financieras
-    usando el año fiscal de la sesión.
-    """
-    from .utils import regenerar_ventas_consulta
-    
-    fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
-    
-    regenerar_ventas_consulta(start_date=fecha_inicio, end_date=fecha_fin)
-    poblar_movimientos_unificados_debito(start_date=fecha_inicio, end_date=fecha_fin)
-    poblar_movimientos_unificados_credito(start_date=fecha_inicio, end_date=fecha_fin)
-    regenerar_resumenes_credito_debito()
-    
-    return fecha_inicio, fecha_fin, anno_fiscal
-
+    """Alias que usa get_panel_date_range y regenerate_financial_tables."""
+    year, start_date, end_date = get_panel_date_range(request)
+    regenerate_financial_tables(start_date, end_date)
+    return start_date, end_date, year
 
 
 def home(request):
-    return render(request, "boran_app/home.html")
+    """Vista principal del panel con selector de año."""
+    year, start_date, end_date = get_panel_date_range(request)
+    context = {
+        'panel_year': year,
+        'panel_years': PANEL_YEAR_CHOICES,
+        'panel_start_date': start_date,
+        'panel_end_date': end_date,
+    }
+    return render(request, "boran_app/home.html", context)
 
-def cambiar_anno_fiscal(request):
-    """
-    Vista para cambiar el año fiscal activo.
-    Guarda el año seleccionado en la sesión del usuario.
-    """
+
+def set_panel_year(request):
+    """Vista para cambiar el año del panel (POST)."""
     if request.method == 'POST':
-        anno = request.POST.get('anno')
-        if anno and anno.isdigit():
-            anno_int = int(anno)
-            if anno_int in [2025, 2026]:  # Años válidos
-                request.session['anno_fiscal'] = anno_int
-                messages.success(request, f"Año fiscal cambiado a {anno_int}. Todos los cálculos ahora usarán el período 01/01/{anno_int} - 31/12/{anno_int}.")
+        year_value = request.POST.get('panel_year')
+        try:
+            year_int = int(year_value)
+        except (TypeError, ValueError):
+            year_int = _get_default_panel_year()
+        if year_int not in PANEL_YEAR_CHOICES:
+            year_int = _get_default_panel_year()
+        request.session['panel_year'] = year_int
+        next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home')
+        return redirect(next_url)
     return redirect('home')
+
+
+# Alias para compatibilidad
+def cambiar_anno_fiscal(request):
+    """Alias de set_panel_year para compatibilidad con URLs existentes."""
+    return set_panel_year(request)
 
 
 def generar_balance_inicial_anno(request):

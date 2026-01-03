@@ -5,11 +5,69 @@
 <style>
   body { background: #f5f5f5 !important; }
 
+  /* Header con título y botones */
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Selector de año - estilo Panel-Bronz */
+  .year-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    background: #ffffff;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(41, 73, 92, 0.12);
+    border: 1px solid #e3e6ea;
+  }
+
+  .year-toggle span {
+    font-size: 0.85rem;
+    color: #29495c;
+    font-weight: 500;
+    margin-left: 6px;
+  }
+
+  .year-toggle button {
+    border: none;
+    background: transparent;
+    color: #29495c;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+  }
+
+  .year-toggle button:hover {
+    background: #f0f4f7;
+  }
+
+  .year-toggle button.active {
+    background: linear-gradient(135deg, #417690 0%, #2c6ba0 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(65, 118, 144, 0.35);
+  }
+
   h1 {
     color: #29495c;
     font-weight: 600;
     font-size: 2rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
     letter-spacing: .5px;
   }
 
@@ -35,20 +93,19 @@
     margin-bottom: .5rem; transition: background .13s;
   }
   .btn-admin:hover, .btn-admin:focus { background: #2c6ba0; color: #fff; }
-  .btn-admin.secondary, .btn-admin.info { background: #e6eef3; color: #295283; } /* alias de .info */
+  .btn-admin.secondary, .btn-admin.info { background: #e6eef3; color: #295283; }
   .btn-admin.secondary:hover, .btn-admin.info:hover { background: #d0e2f0; color: #1a344b; }
   .btn-admin.warning { background: #fff8e1; color: #ab7a00; }
   .btn-admin.warning:hover { background: #ffe9ad; color: #7a6300; }
   .btn-admin.success { background: #e6f1e6; color: #2c6b4b; }
   .btn-admin.success:hover { background: #b9dbc2; color: #1a4330; }
 
-  .input-fecha-mini { min-height: 44px; } /* target táctil */
+  .input-fecha-mini { min-height: 44px; }
   .alert { border-radius: 7px; font-size: 1em; margin-bottom: 16px; }
 
-  /* Responsive: 1 col (sm), 2 col (md), 3 col (lg) */
   @media (max-width: 991.98px) { .card-header { font-size: 1em; } }
   @media (max-width: 767.98px) {
-    h1 { font-size: 1.35rem; margin-bottom: 1.1rem; }
+    h1 { font-size: 1.35rem; }
     .card-body { padding: .85rem; }
     .btn-admin { font-size: 1rem; padding: .7rem .9rem; }
   }
@@ -56,9 +113,9 @@
     .container.py-4 { padding: 12px !important; }
     .alert { font-size: .98em; }
     label, .card-header { font-size: 1rem; }
+    .header-row { flex-direction: column; align-items: flex-start; }
   }
 
-  /* Mobile full width + evitar zoom iOS en inputs */
   html, body { height: auto; min-height: 100%; overflow-y: auto; overflow-x: hidden; }
   @media (max-width: 575.98px){
     .container { width: 100% !important; max-width: 100% !important; padding-left: 12px !important; padding-right: 12px !important; }
@@ -70,24 +127,26 @@
 </style>
 
 <div class="container py-4">
-  <h1>Panel de BORANGORA</h1>
-
-  <!-- SELECTOR DE AÑO FISCAL - Simple -->
-  <div class="d-flex align-items-center gap-2 mb-3">
-    <span style="color: #666; font-size: 0.95rem;">Año:</span>
-    <form action="{% url 'cambiar_anno_fiscal' %}" method="post" style="display: inline;">
-      {% csrf_token %}
-      <input type="hidden" name="anno" value="{% if anno_fiscal == 2025 %}2026{% else %}2025{% endif %}">
-      <button type="submit" class="btn btn-sm" 
-              style="background: {% if anno_fiscal == 2025 %}#417690{% else %}#28a745{% endif %}; color: #fff; font-weight: 600; padding: 4px 16px; border-radius: 4px;">
-        {{ anno_fiscal }}
-      </button>
-    </form>
-    <span style="color: #999; font-size: 0.8rem;">(clic para cambiar)</span>
-    <a href="{% url 'generar_balance_inicial' %}" class="btn btn-sm btn-outline-secondary" style="margin-left: 10px; font-size: 0.8rem;">
-      ⚙️ Balance Inicial
-    </a>
+  <!-- Header con título y selector de año -->
+  <div class="header-row">
+    <h1>Panel de BORANGORA</h1>
+    <div class="header-buttons">
+      <form method="post" action="{% url 'set_panel_year' %}" class="year-toggle">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <span>Año</span>
+        <button type="submit" name="panel_year" value="2025" class="{% if panel_year == 2025 %}active{% endif %}">2025</button>
+        <button type="submit" name="panel_year" value="2026" class="{% if panel_year == 2026 %}active{% endif %}">2026</button>
+      </form>
+      <a href="{% url 'generar_balance_inicial' %}" class="btn btn-sm btn-outline-secondary" style="font-size: 0.8rem;">
+        ⚙️ Balance Inicial
+      </a>
+    </div>
   </div>
+
+  <p class="text-muted" style="font-size: 0.85rem; margin-top: -10px; margin-bottom: 24px;">
+    Mostrando resultados desde <strong>{{ panel_start_date|date:"d/m/Y" }}</strong> hasta <strong>{{ panel_end_date|date:"d/m/Y" }}</strong>.
+  </p>
 
   {% if messages %}
     <div>
