@@ -1,0 +1,105 @@
+{% extends "boran_app/base.html" %}
+{% block title %}Movimientos por Cuenta - {{ panel_year }}{% endblock %}
+{% block content %}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-search me-2"></i>Movimientos por Cuenta - {{ panel_year }}</h2>
+        <a href="{% url 'home' %}" class="btn btn-outline-secondary">← Volver</a>
+    </div>
+
+    <form method="get" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="cuenta" class="form-label">Código de Cuenta (7 dígitos):</label>
+                <input type="text" class="form-control" id="cuenta" name="cuenta" 
+                       value="{{ cuenta }}" placeholder="Ej: 1010100" maxlength="7" pattern="\d{7}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-1"></i> Buscar
+                </button>
+            </div>
+        </div>
+    </form>
+
+    {% if cuenta %}
+    <p class="text-muted">
+        Período: <strong>{{ fecha_inicio|date:"d/m/Y" }}</strong> hasta <strong>{{ fecha_fin|date:"d/m/Y" }}</strong>
+    </p>
+
+    <div class="row">
+        <!-- Débitos -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <strong>Débitos</strong> ({{ movimientos_debito|length }} movimientos)
+                </div>
+                <div class="card-body">
+                    {% if movimientos_debito %}
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-end">Monto</th>
+                                    <th>Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in movimientos_debito %}
+                                <tr>
+                                    <td>{{ m.fecha|date:"d/m/Y" }}</td>
+                                    <td class="text-end">{{ m.monto_debito|floatformat:0 }}</td>
+                                    <td><small>{{ m.tabla_origen }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Sin movimientos de débito</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Créditos -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <strong>Créditos</strong> ({{ movimientos_credito|length }} movimientos)
+                </div>
+                <div class="card-body">
+                    {% if movimientos_credito %}
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-end">Monto</th>
+                                    <th>Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in movimientos_credito %}
+                                <tr>
+                                    <td>{{ m.fecha|date:"d/m/Y" }}</td>
+                                    <td class="text-end">{{ m.monto_credito|floatformat:0 }}</td>
+                                    <td><small>{{ m.tabla_origen }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Sin movimientos de crédito</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "boran_app/base.html" %}
+{% block title %}Productos más Rentables - {{ panel_year }}{% endblock %}
+{% block content %}
+
+<style>
+    .table-rentables th { background: #e4edf4; color: #417690; }
+    .margen-positivo { color: #28a745; }
+    .margen-negativo { color: #dc3545; }
+</style>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-chart-line me-2"></i>Productos más Rentables - {{ panel_year }}</h2>
+        <a href="{% url 'home' %}" class="btn btn-outline-secondary">← Volver</a>
+    </div>
+    
+    <p class="text-muted">
+        Período: <strong>{{ fecha_inicio|date:"d/m/Y" }}</strong> hasta <strong>{{ fecha_fin|date:"d/m/Y" }}</strong>
+    </p>
+
+    {% if productos %}
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Categoría</th>
+                    <th>Producto</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Venta Total</th>
+                    <th class="text-end">Costo Total</th>
+                    <th class="text-end">Margen</th>
+                    <th class="text-end">Margen %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in productos %}
+                <tr>
+                    <td>{{ p.codigo }}</td>
+                    <td>{{ p.categoria }}</td>
+                    <td>{{ p.producto }}</td>
+                    <td class="text-end">{{ p.cantidad }}</td>
+                    <td class="text-end">{{ p.venta_total }}</td>
+                    <td class="text-end">{{ p.costo_total }}</td>
+                    <td class="text-end {% if p.margen_pct >= 0 %}margen-positivo{% else %}margen-negativo{% endif %}">
+                        {{ p.margen }}
+                    </td>
+                    <td class="text-end {% if p.margen_pct >= 0 %}margen-positivo{% else %}margen-negativo{% endif %}">
+                        {{ p.margen_pct }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        No hay datos de productos para el período seleccionado.
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

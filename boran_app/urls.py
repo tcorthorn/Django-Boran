@@ -68,5 +68,11 @@ urlpatterns = [
 
     path("importar/", views.importar_datos, name="importar_datos"),
 
-    # Puedes agregar más paths según tus views
+    # Vistas adicionales de análisis
+    path('productos-rentables/', views.productos_rentables, name='productos_rentables'),
+    path('inventario-tiendas/', views.inventario_tiendas, name='inventario_tiendas'),
+    path('validar-plan-cuentas/', views.validar_plan_cuentas, name='validar_plan_cuentas'),
+    path('movimientos-cuenta/', views.movimientos_cuenta, name='movimientos_cuenta'),
+    path('movimientos-por-fecha/', views.movimientos_por_fecha, name='movimientos_por_fecha'),
+    path('movimientos-por-rango/', views.movimientos_por_rango, name='movimientos_por_rango'),
 ]

@@ -445,9 +445,6 @@ from boran_app.scripts.import_envios import main as import_envios_script
 from boran_app.scripts.import_otros_gastos import main as import_otros_gastos_script
 from boran_app.scripts.import_envios_a_tiendas import main as import_envios_a_tiendas_script
 
-def home(request):
-    return render(request, "boran_app/home.html")
-
 @require_POST
 def import_ajuste_inventario(request):
     try:
@@ -1070,31 +1067,48 @@ from datetime import datetime
 import pandas as pd
 
 def balance_segun_fecha_view(request):
-
-    # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
-
+    """
+    Genera el balance según fecha de corte, respetando el año fiscal seleccionado.
+    Solo procesa datos del año fiscal actual.
+    """
+    # Obtener año fiscal de la sesión
+    anno_fiscal = get_panel_year(request)
+    fecha_inicio_anno = date(anno_fiscal, 1, 1)
+    
+    # Obtener fecha de corte del parámetro GET
     fecha_corte = request.GET.get('fecha_corte')
     fecha_corte_dt = None
     fecha_corte_str = ''
 
     if fecha_corte:
         try:
-            fecha_corte_dt = datetime.strptime(fecha_corte, "%Y-%m-%d").date()   # <- cambio aquí
-            fecha_corte_str = fecha_corte_dt.strftime("%Y-%m-%d")                # <- para mostrar igual en el título
+            fecha_corte_dt = datetime.strptime(fecha_corte, "%Y-%m-%d").date()
+            fecha_corte_str = fecha_corte_dt.strftime("%Y-%m-%d")
         except Exception:
             fecha_corte_dt = None
             fecha_corte_str = ''
 
-
     if not fecha_corte_dt:
-        return render(request, "boran_app/balance_segun_fecha.html")
+        # Mostrar formulario con el año fiscal actual
+        return render(request, "boran_app/balance_segun_fecha.html", {
+            'panel_year': anno_fiscal,
+        })
+    
+    # Regenerar tablas financieras con el rango del año fiscal hasta la fecha de corte
+    regenerar_ventas_consulta(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    poblar_movimientos_unificados_debito(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    poblar_movimientos_unificados_credito(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    regenerar_resumenes_credito_debito()
 
-    debitos = MovimientoUnificadoDebito.objects.filter(fecha__lte=fecha_corte_dt)
-    creditos = MovimientoUnificadoCredito.objects.filter(fecha__lte=fecha_corte_dt)
+    # Filtrar movimientos desde el inicio del año fiscal hasta la fecha de corte
+    debitos = MovimientoUnificadoDebito.objects.filter(
+        fecha__gte=fecha_inicio_anno,
+        fecha__lte=fecha_corte_dt
+    )
+    creditos = MovimientoUnificadoCredito.objects.filter(
+        fecha__gte=fecha_inicio_anno,
+        fecha__lte=fecha_corte_dt
+    )
 
     debitos_dict = {}
     for d in debitos:
@@ -1230,44 +1244,70 @@ from .models import MovimientoUnificadoCredito, MovimientoUnificadoDebito
 from .cod_cuentas_balance import balance_rows
 
 def resumen_balance_segun_fecha_view(request):
+    """
+    Genera el resumen de balance según fecha de corte, respetando el año fiscal seleccionado.
+    """
+    # Obtener año fiscal de la sesión
+    anno_fiscal = get_panel_year(request)
+    fecha_inicio_anno = date(anno_fiscal, 1, 1)
+    
     fecha_corte = request.GET.get('fecha_corte')
-
-    # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
-
     matriz_dict = {}
     fecha_corte_dt = None
 
     if fecha_corte:
         from datetime import datetime
-        fecha_corte_dt = datetime.strptime(fecha_corte, "%Y-%m-%d").date()
-        debitos = MovimientoUnificadoDebito.objects.filter(fecha__lte=fecha_corte_dt)
-        creditos = MovimientoUnificadoCredito.objects.filter(fecha__lte=fecha_corte_dt)
-        debitos_dict = {}
-        for d in debitos:
-            debitos_dict[d.cta_debito] = debitos_dict.get(d.cta_debito, 0) + float(d.monto_debito)
-        creditos_dict = {}
-        for c in creditos:
-            creditos_dict[c.cta_credito] = creditos_dict.get(c.cta_credito, 0) + float(c.monto_credito)
-        for fila in balance_rows:
-            codigo = str(fila['codigo'])
-            debito = debitos_dict.get(int(codigo), 0)
-            credito = creditos_dict.get(int(codigo), 0)
-            saldo_deudor = debito - credito if debito > credito else 0
-            saldo_acreedor = credito - debito if credito > debito else 0
-            if 1010100 <= int(codigo) <= 2040000:
-                matriz_dict[f'A:{codigo}'] = saldo_deudor
-                matriz_dict[f'P:{codigo}'] = saldo_acreedor
-            elif 3010100 <= int(codigo) <= 3030300:
-                matriz_dict[f'Pe:{codigo}'] = saldo_deudor
-                matriz_dict[f'G:{codigo}'] = saldo_acreedor
+        try:
+            fecha_corte_dt = datetime.strptime(fecha_corte, "%Y-%m-%d").date()
+        except ValueError:
+            fecha_corte_dt = None
+    
+    if not fecha_corte_dt:
+        return render(request, "boran_app/resumen_balance_segun_fecha.html", {
+            'matriz_js': json.dumps(matriz_dict),
+            'fecha_corte': fecha_corte,
+            'panel_year': anno_fiscal,
+        })
+    
+    # Regenerar tablas financieras con el rango del año fiscal hasta la fecha de corte
+    regenerar_ventas_consulta(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    poblar_movimientos_unificados_debito(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    poblar_movimientos_unificados_credito(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    regenerar_resumenes_credito_debito()
+
+    # Filtrar movimientos desde el inicio del año fiscal hasta la fecha de corte
+    debitos = MovimientoUnificadoDebito.objects.filter(
+        fecha__gte=fecha_inicio_anno,
+        fecha__lte=fecha_corte_dt
+    )
+    creditos = MovimientoUnificadoCredito.objects.filter(
+        fecha__gte=fecha_inicio_anno,
+        fecha__lte=fecha_corte_dt
+    )
+    
+    debitos_dict = {}
+    for d in debitos:
+        debitos_dict[d.cta_debito] = debitos_dict.get(d.cta_debito, 0) + float(d.monto_debito)
+    creditos_dict = {}
+    for c in creditos:
+        creditos_dict[c.cta_credito] = creditos_dict.get(c.cta_credito, 0) + float(c.monto_credito)
+    for fila in balance_rows:
+        codigo = str(fila['codigo'])
+        debito = debitos_dict.get(int(codigo), 0)
+        credito = creditos_dict.get(int(codigo), 0)
+        saldo_deudor = debito - credito if debito > credito else 0
+        saldo_acreedor = credito - debito if credito > debito else 0
+        if 1010100 <= int(codigo) <= 2040000:
+            matriz_dict[f'A:{codigo}'] = saldo_deudor
+            matriz_dict[f'P:{codigo}'] = saldo_acreedor
+        elif 3010100 <= int(codigo) <= 3030300:
+            matriz_dict[f'Pe:{codigo}'] = saldo_deudor
+            matriz_dict[f'G:{codigo}'] = saldo_acreedor
 
     return render(request, "boran_app/resumen_balance_segun_fecha.html", {
         'matriz_js': json.dumps(matriz_dict),
         'fecha_corte': fecha_corte,
+        'panel_year': anno_fiscal,
     })
 
 
@@ -1318,15 +1358,14 @@ from .cod_cuentas_balance import balance_rows
 from datetime import datetime
 
 def resumen_financiero_segun_fecha_view(request):
+    """
+    Genera el resumen financiero según fecha de corte, respetando el año fiscal seleccionado.
+    """
+    # Obtener año fiscal de la sesión
+    anno_fiscal = get_panel_year(request)
+    fecha_inicio_anno = date(anno_fiscal, 1, 1)
+    
     fecha_corte = request.GET.get('fecha_corte')
-
-    # Procesos previos (puedes incluir solo los necesarios para el financiero)
-    regenerar_ventas_consulta()
-    poblar_movimientos_unificados_debito()
-    poblar_movimientos_unificados_credito()
-    regenerar_resumenes_credito_debito()
-
-
     matriz_dict = {}
     fecha_corte_dt = None
 
@@ -1337,33 +1376,56 @@ def resumen_financiero_segun_fecha_view(request):
                 fecha_corte_dt = datetime.strptime(fecha_corte, "%d-%m-%Y").date()
             except ValueError:
                 fecha_corte_dt = datetime.strptime(fecha_corte, "%Y-%m-%d").date()
-            debitos = MovimientoUnificadoDebito.objects.filter(fecha__lte=fecha_corte_dt)
-            creditos = MovimientoUnificadoCredito.objects.filter(fecha__lte=fecha_corte_dt)
-            debitos_dict = {}
-            for d in debitos:
-                debitos_dict[d.cta_debito] = debitos_dict.get(d.cta_debito, 0) + float(d.monto_debito)
-            creditos_dict = {}
-            for c in creditos:
-                creditos_dict[c.cta_credito] = creditos_dict.get(c.cta_credito, 0) + float(c.monto_credito)
-
-            for fila in balance_rows:
-                codigo = str(fila['codigo'])
-                debito = debitos_dict.get(int(codigo), 0)
-                credito = creditos_dict.get(int(codigo), 0)
-                saldo_deudor = debito - credito if debito > credito else 0
-                saldo_acreedor = credito - debito if credito > debito else 0
-                if 1010100 <= int(codigo) <= 2040000:
-                    matriz_dict[f'A:{codigo}'] = saldo_deudor
-                    matriz_dict[f'P:{codigo}'] = saldo_acreedor
-                elif 3010100 <= int(codigo) <= 3030300:
-                    matriz_dict[f'Pe:{codigo}'] = saldo_deudor
-                    matriz_dict[f'G:{codigo}'] = saldo_acreedor
         except Exception:
-            pass
+            fecha_corte_dt = None
+    
+    if not fecha_corte_dt:
+        return render(request, "boran_app/resumen_financiero_segun_fecha.html", {
+            'matriz_js': json.dumps(matriz_dict),
+            'fecha_corte': fecha_corte,
+            'panel_year': anno_fiscal,
+        })
+    
+    # Regenerar tablas financieras con el rango del año fiscal hasta la fecha de corte
+    regenerar_ventas_consulta(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    poblar_movimientos_unificados_debito(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    poblar_movimientos_unificados_credito(start_date=fecha_inicio_anno, end_date=fecha_corte_dt)
+    regenerar_resumenes_credito_debito()
+
+    # Filtrar movimientos desde el inicio del año fiscal hasta la fecha de corte
+    debitos = MovimientoUnificadoDebito.objects.filter(
+        fecha__gte=fecha_inicio_anno,
+        fecha__lte=fecha_corte_dt
+    )
+    creditos = MovimientoUnificadoCredito.objects.filter(
+        fecha__gte=fecha_inicio_anno,
+        fecha__lte=fecha_corte_dt
+    )
+    
+    debitos_dict = {}
+    for d in debitos:
+        debitos_dict[d.cta_debito] = debitos_dict.get(d.cta_debito, 0) + float(d.monto_debito)
+    creditos_dict = {}
+    for c in creditos:
+        creditos_dict[c.cta_credito] = creditos_dict.get(c.cta_credito, 0) + float(c.monto_credito)
+
+    for fila in balance_rows:
+        codigo = str(fila['codigo'])
+        debito = debitos_dict.get(int(codigo), 0)
+        credito = creditos_dict.get(int(codigo), 0)
+        saldo_deudor = debito - credito if debito > credito else 0
+        saldo_acreedor = credito - debito if credito > debito else 0
+        if 1010100 <= int(codigo) <= 2040000:
+            matriz_dict[f'A:{codigo}'] = saldo_deudor
+            matriz_dict[f'P:{codigo}'] = saldo_acreedor
+        elif 3010100 <= int(codigo) <= 3030300:
+            matriz_dict[f'Pe:{codigo}'] = saldo_deudor
+            matriz_dict[f'G:{codigo}'] = saldo_acreedor
 
     return render(request, "boran_app/resumen_financiero_segun_fecha.html", {
         'matriz_js': json.dumps(matriz_dict),
         'fecha_corte': fecha_corte,
+        'panel_year': anno_fiscal,
     })
 
 # vEXPORTAR A EXCEL
@@ -2077,11 +2139,273 @@ def exportar_resumen_ventas_tiendas_excel(request):
     df.to_excel(response, index=False)
     return response
 
-    from django.shortcuts import render
-
-def home(request):
-    # tu vista actual del Home
-    return render(request, "boran_app/home.html")
-
 def importar_datos(request):
     return render(request, "boran_app/importar_datos.html")
+
+
+# ——————————————————————————————————————————————————————————————
+# VISTAS ADICIONALES - Productos Rentables, Inventario Tiendas, etc.
+# ——————————————————————————————————————————————————————————————
+
+def productos_rentables(request):
+    """
+    Vista para mostrar los productos más rentables según el año fiscal seleccionado.
+    """
+    # Obtener fechas del año fiscal
+    fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
+    
+    # Obtener ventas del año fiscal
+    ventas = VentasConsulta.objects.filter(
+        fecha__gte=fecha_inicio,
+        fecha__lte=fecha_fin
+    ).values('codigo_producto', 'categoria', 'producto').annotate(
+        total_cantidad=Sum('cantidad'),
+        total_venta=Sum('total_venta'),
+        total_costo=Sum('costo_venta')
+    ).order_by('-total_venta')[:20]
+    
+    # Calcular rentabilidad
+    productos = []
+    for v in ventas:
+        venta_total = float(v['total_venta'] or 0)
+        costo_total = float(v['total_costo'] or 0)
+        margen = venta_total - costo_total
+        margen_pct = (margen / venta_total * 100) if venta_total > 0 else 0
+        productos.append({
+            'codigo': v['codigo_producto'],
+            'categoria': v['categoria'],
+            'producto': v['producto'],
+            'cantidad': v['total_cantidad'],
+            'venta_total': intdot(venta_total),
+            'costo_total': intdot(costo_total),
+            'margen': intdot(margen),
+            'margen_pct': round(margen_pct, 1),
+        })
+    
+    return render(request, 'boran_app/productos_rentables.html', {
+        'productos': productos,
+        'panel_year': anno_fiscal,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+    })
+
+
+def inventario_tiendas(request):
+    """
+    Vista para mostrar el inventario por tienda y SKU según el año fiscal seleccionado.
+    """
+    # Obtener fechas del año fiscal
+    fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
+    
+    from .models import Catalogo, InventarioInicial, EntradaProductos, Envios, Ventas, AjusteInventario, EnviosATiendas
+    from django.db import models
+    
+    # Definir tiendas
+    tiendas = ['Online', 'Casa Moda', 'Casa Aura', 'Pucon', 'Uber Eats']
+    
+    inventario = []
+    for obj in Catalogo.objects.all():
+        ini = InventarioInicial.objects.filter(sku=obj.sku).first()
+        inicial = ini.stock if ini else 0
+        
+        ingresos = EntradaProductos.objects.filter(
+            sku__sku=obj.sku,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin
+        ).aggregate(total=models.Sum('cantidad_ingresada'))['total'] or 0
+        
+        ventas = Ventas.objects.filter(
+            sku__sku=obj.sku,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin
+        ).aggregate(total=models.Sum('cantidad'))['total'] or 0
+        
+        ajustes = AjusteInventario.objects.filter(
+            sku__sku=obj.sku,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin
+        ).aggregate(total=models.Sum('cantidad'))['total'] or 0
+        
+        # Stock disponible
+        stock = inicial + ingresos - ventas - ajustes
+        
+        if stock != 0:  # Solo mostrar productos con stock
+            inventario.append({
+                'sku': obj.sku,
+                'categoria': obj.categoria,
+                'producto': obj.producto,
+                'inicial': inicial,
+                'ingresos': ingresos,
+                'ventas': ventas,
+                'ajustes': ajustes,
+                'stock': stock,
+            })
+    
+    return render(request, 'boran_app/inventario_tiendas.html', {
+        'inventario': inventario,
+        'tiendas': tiendas,
+        'panel_year': anno_fiscal,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+    })
+
+
+def validar_plan_cuentas(request):
+    """
+    Vista para validar cuentas contables ingresadas.
+    """
+    from .cod_cuentas_balance import balance_rows
+    
+    anno_fiscal = get_panel_year(request)
+    
+    # Obtener todas las cuentas usadas en los movimientos
+    cuentas_debito = set(MovimientoUnificadoDebito.objects.values_list('cta_debito', flat=True))
+    cuentas_credito = set(MovimientoUnificadoCredito.objects.values_list('cta_credito', flat=True))
+    cuentas_usadas = cuentas_debito.union(cuentas_credito)
+    
+    # Obtener cuentas del plan de cuentas
+    cuentas_plan = {str(row['codigo']) for row in balance_rows}
+    
+    # Encontrar cuentas no válidas
+    cuentas_invalidas = []
+    for cuenta in cuentas_usadas:
+        if cuenta and str(cuenta) not in cuentas_plan:
+            cuentas_invalidas.append(cuenta)
+    
+    return render(request, 'boran_app/validar_plan_cuentas.html', {
+        'cuentas_invalidas': sorted(cuentas_invalidas),
+        'total_cuentas_usadas': len(cuentas_usadas),
+        'total_invalidas': len(cuentas_invalidas),
+        'panel_year': anno_fiscal,
+    })
+
+
+def movimientos_cuenta(request):
+    """
+    Vista para ver movimientos de una cuenta específica.
+    """
+    anno_fiscal = get_panel_year(request)
+    fecha_inicio = date(anno_fiscal, 1, 1)
+    fecha_fin = date(anno_fiscal, 12, 31) if anno_fiscal != date.today().year else date.today()
+    
+    cuenta = request.GET.get('cuenta', '')
+    movimientos_debito = []
+    movimientos_credito = []
+    
+    if cuenta:
+        movimientos_debito = MovimientoUnificadoDebito.objects.filter(
+            cta_debito=cuenta,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin
+        ).order_by('fecha')
+        
+        movimientos_credito = MovimientoUnificadoCredito.objects.filter(
+            cta_credito=cuenta,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin
+        ).order_by('fecha')
+    
+    return render(request, 'boran_app/movimientos_cuenta.html', {
+        'cuenta': cuenta,
+        'movimientos_debito': movimientos_debito,
+        'movimientos_credito': movimientos_credito,
+        'panel_year': anno_fiscal,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+    })
+
+
+def movimientos_por_fecha(request):
+    """
+    Vista para ver todos los movimientos de una fecha específica.
+    """
+    anno_fiscal = get_panel_year(request)
+    
+    fecha_str = request.GET.get('fecha', '')
+    fecha_dt = None
+    movimientos_debito = []
+    movimientos_credito = []
+    
+    if fecha_str:
+        # Parsear fecha en formato DD-MM-AA o DD-MM-YYYY
+        try:
+            from datetime import datetime
+            for fmt in ("%d-%m-%y", "%d-%m-%Y", "%Y-%m-%d"):
+                try:
+                    fecha_dt = datetime.strptime(fecha_str, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            
+            if fecha_dt:
+                movimientos_debito = MovimientoUnificadoDebito.objects.filter(
+                    fecha=fecha_dt
+                ).order_by('cta_debito')
+                
+                movimientos_credito = MovimientoUnificadoCredito.objects.filter(
+                    fecha=fecha_dt
+                ).order_by('cta_credito')
+        except Exception:
+            pass
+    
+    return render(request, 'boran_app/movimientos_por_fecha.html', {
+        'fecha': fecha_dt,
+        'fecha_str': fecha_str,
+        'movimientos_debito': movimientos_debito,
+        'movimientos_credito': movimientos_credito,
+        'panel_year': anno_fiscal,
+    })
+
+
+def movimientos_por_rango(request):
+    """
+    Vista para ver todos los movimientos en un rango de fechas.
+    """
+    anno_fiscal = get_panel_year(request)
+    
+    desde_str = request.GET.get('desde', '')
+    hasta_str = request.GET.get('hasta', '')
+    desde_dt = None
+    hasta_dt = None
+    movimientos_debito = []
+    movimientos_credito = []
+    
+    def parse_fecha(fecha_str):
+        from datetime import datetime
+        for fmt in ("%d-%m-%y", "%d-%m-%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(fecha_str, fmt).date()
+            except ValueError:
+                continue
+        return None
+    
+    if desde_str and hasta_str:
+        desde_dt = parse_fecha(desde_str)
+        hasta_dt = parse_fecha(hasta_str)
+        
+        if desde_dt and hasta_dt:
+            movimientos_debito = MovimientoUnificadoDebito.objects.filter(
+                fecha__gte=desde_dt,
+                fecha__lte=hasta_dt
+            ).order_by('fecha', 'cta_debito')
+            
+            movimientos_credito = MovimientoUnificadoCredito.objects.filter(
+                fecha__gte=desde_dt,
+                fecha__lte=hasta_dt
+            ).order_by('fecha', 'cta_credito')
+    
+    # Calcular totales
+    total_debito = sum(float(m.monto_debito or 0) for m in movimientos_debito)
+    total_credito = sum(float(m.monto_credito or 0) for m in movimientos_credito)
+    
+    return render(request, 'boran_app/movimientos_por_rango.html', {
+        'desde': desde_dt,
+        'hasta': hasta_dt,
+        'desde_str': desde_str,
+        'hasta_str': hasta_str,
+        'movimientos_debito': movimientos_debito,
+        'movimientos_credito': movimientos_credito,
+        'total_debito': intdot(total_debito),
+        'total_credito': intdot(total_credito),
+        'panel_year': anno_fiscal,
+    })

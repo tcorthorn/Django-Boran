@@ -1,0 +1,55 @@
+{% extends "boran_app/base.html" %}
+{% block title %}Inventario por Tienda - {{ panel_year }}{% endblock %}
+{% block content %}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-boxes me-2"></i>Inventario por Tienda y SKU - {{ panel_year }}</h2>
+        <a href="{% url 'home' %}" class="btn btn-outline-secondary">← Volver</a>
+    </div>
+    
+    <p class="text-muted">
+        Período: <strong>{{ fecha_inicio|date:"d/m/Y" }}</strong> hasta <strong>{{ fecha_fin|date:"d/m/Y" }}</strong>
+    </p>
+
+    {% if inventario %}
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>SKU</th>
+                    <th>Categoría</th>
+                    <th>Producto</th>
+                    <th class="text-end">Inicial</th>
+                    <th class="text-end">Ingresos</th>
+                    <th class="text-end">Ventas</th>
+                    <th class="text-end">Ajustes</th>
+                    <th class="text-end">Stock Actual</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventario %}
+                <tr>
+                    <td>{{ item.sku }}</td>
+                    <td>{{ item.categoria }}</td>
+                    <td>{{ item.producto }}</td>
+                    <td class="text-end">{{ item.inicial }}</td>
+                    <td class="text-end">{{ item.ingresos }}</td>
+                    <td class="text-end">{{ item.ventas }}</td>
+                    <td class="text-end">{{ item.ajustes }}</td>
+                    <td class="text-end {% if item.stock < 0 %}text-danger{% elif item.stock == 0 %}text-warning{% else %}text-success{% endif %}">
+                        <strong>{{ item.stock }}</strong>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        No hay datos de inventario para mostrar.
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
