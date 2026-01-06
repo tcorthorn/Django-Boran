@@ -85,8 +85,12 @@ def regenerate_financial_tables(start_date, end_date):
 
 # Alias para compatibilidad con código existente
 def obtener_fechas_anno_fiscal(request):
-    """Alias de get_panel_date_range para compatibilidad."""
-    return get_panel_date_range(request)
+    """
+    Alias de get_panel_date_range para compatibilidad.
+    Devuelve (fecha_inicio, fecha_fin, anno_fiscal) en ese orden.
+    """
+    year, start_date, end_date = get_panel_date_range(request)
+    return start_date, end_date, year
 
 
 def regenerar_tablas_financieras(request):
