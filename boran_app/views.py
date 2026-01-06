@@ -88,9 +88,35 @@ def obtener_fechas_anno_fiscal(request):
     """
     Alias de get_panel_date_range para compatibilidad.
     Devuelve (fecha_inicio, fecha_fin, anno_fiscal) en ese orden.
+    Los valores de fecha se devuelven como objetos date.
     """
     year, start_date, end_date = get_panel_date_range(request)
     return start_date, end_date, year
+
+
+def obtener_fechas_anno_fiscal_str(request):
+    """
+    Igual que obtener_fechas_anno_fiscal pero devuelve fechas como strings ISO.
+    Útil para evitar problemas de compatibilidad en Python 3.14.
+    """
+    year, start_date, end_date = get_panel_date_range(request)
+    return start_date.isoformat(), end_date.isoformat(), year
+
+
+def fecha_a_iso(fecha):
+    """
+    Convierte cualquier fecha a string ISO format.
+    Maneja: date, datetime, string, None.
+    """
+    if fecha is None:
+        return None
+    if isinstance(fecha, str):
+        return fecha
+    if isinstance(fecha, datetime):
+        return fecha.date().isoformat()
+    if isinstance(fecha, date):
+        return fecha.isoformat()
+    return str(fecha)
 
 
 def regenerar_tablas_financieras(request):
@@ -1105,13 +1131,14 @@ def balance_segun_fecha_view(request):
     regenerar_resumenes_credito_debito()
 
     # Filtrar movimientos desde el inicio del año fiscal hasta la fecha de corte
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
     debitos = MovimientoUnificadoDebito.objects.filter(
-        fecha__gte=fecha_inicio_anno,
-        fecha__lte=fecha_corte_dt
+        fecha__gte=fecha_a_iso(fecha_inicio_anno),
+        fecha__lte=fecha_a_iso(fecha_corte_dt)
     )
     creditos = MovimientoUnificadoCredito.objects.filter(
-        fecha__gte=fecha_inicio_anno,
-        fecha__lte=fecha_corte_dt
+        fecha__gte=fecha_a_iso(fecha_inicio_anno),
+        fecha__lte=fecha_a_iso(fecha_corte_dt)
     )
 
     debitos_dict = {}
@@ -1280,13 +1307,14 @@ def resumen_balance_segun_fecha_view(request):
     regenerar_resumenes_credito_debito()
 
     # Filtrar movimientos desde el inicio del año fiscal hasta la fecha de corte
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
     debitos = MovimientoUnificadoDebito.objects.filter(
-        fecha__gte=fecha_inicio_anno,
-        fecha__lte=fecha_corte_dt
+        fecha__gte=fecha_a_iso(fecha_inicio_anno),
+        fecha__lte=fecha_a_iso(fecha_corte_dt)
     )
     creditos = MovimientoUnificadoCredito.objects.filter(
-        fecha__gte=fecha_inicio_anno,
-        fecha__lte=fecha_corte_dt
+        fecha__gte=fecha_a_iso(fecha_inicio_anno),
+        fecha__lte=fecha_a_iso(fecha_corte_dt)
     )
     
     debitos_dict = {}
@@ -1397,13 +1425,14 @@ def resumen_financiero_segun_fecha_view(request):
     regenerar_resumenes_credito_debito()
 
     # Filtrar movimientos desde el inicio del año fiscal hasta la fecha de corte
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
     debitos = MovimientoUnificadoDebito.objects.filter(
-        fecha__gte=fecha_inicio_anno,
-        fecha__lte=fecha_corte_dt
+        fecha__gte=fecha_a_iso(fecha_inicio_anno),
+        fecha__lte=fecha_a_iso(fecha_corte_dt)
     )
     creditos = MovimientoUnificadoCredito.objects.filter(
-        fecha__gte=fecha_inicio_anno,
-        fecha__lte=fecha_corte_dt
+        fecha__gte=fecha_a_iso(fecha_inicio_anno),
+        fecha__lte=fecha_a_iso(fecha_corte_dt)
     )
     
     debitos_dict = {}
@@ -1726,9 +1755,10 @@ def actualizar_resumen_mensual(request):
     saldos_mensuales = defaultdict(lambda: defaultdict(lambda: {'debitos': 0, 'creditos': 0}))
 
     # Filtrar débitos por año fiscal
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
     debitos = MovimientoUnificadoDebito.objects.filter(
-        fecha__gte=fecha_inicio,
-        fecha__lte=fecha_fin
+        fecha__gte=fecha_a_iso(fecha_inicio),
+        fecha__lte=fecha_a_iso(fecha_fin)
     ).annotate(
         mes=TruncMonth('fecha')
     ).values('mes', 'cta_debito').annotate(total=Sum('monto_debito'))
@@ -1739,9 +1769,10 @@ def actualizar_resumen_mensual(request):
         saldos_mensuales[mes][cuenta]['debitos'] += row['total'] or 0
 
     # Filtrar créditos por año fiscal
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
     creditos = MovimientoUnificadoCredito.objects.filter(
-        fecha__gte=fecha_inicio,
-        fecha__lte=fecha_fin
+        fecha__gte=fecha_a_iso(fecha_inicio),
+        fecha__lte=fecha_a_iso(fecha_fin)
     ).annotate(
         mes=TruncMonth('fecha')
     ).values('mes', 'cta_credito').annotate(total=Sum('monto_credito'))
@@ -1942,7 +1973,11 @@ def resumen_ventas_tiendas_view(request):
     fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
     
     matriz_dict = obtener_matriz_dict_con_request(request)
-    ventas = VentasConsulta.objects.filter(fecha__gte=fecha_inicio, fecha__lte=fecha_fin)
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
+    ventas = VentasConsulta.objects.filter(
+        fecha__gte=fecha_a_iso(fecha_inicio),
+        fecha__lte=fecha_a_iso(fecha_fin)
+    )
 
     # Inicializa datos para cada tienda
     datos_por_tienda = {}
@@ -2055,7 +2090,11 @@ def exportar_resumen_ventas_tiendas_excel(request):
     fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
     
     matriz_dict = obtener_matriz_dict_con_request(request)
-    ventas = VentasConsulta.objects.filter(fecha__gte=fecha_inicio, fecha__lte=fecha_fin)
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
+    ventas = VentasConsulta.objects.filter(
+        fecha__gte=fecha_a_iso(fecha_inicio),
+        fecha__lte=fecha_a_iso(fecha_fin)
+    )
 
     rows = []
     total_ventas = total_costo = total_gastos = total_resultado = 0
@@ -2159,9 +2198,10 @@ def productos_rentables(request):
     fecha_inicio, fecha_fin, anno_fiscal = obtener_fechas_anno_fiscal(request)
     
     # Obtener ventas del año fiscal
+    # Usar fecha_a_iso para compatibilidad con Python 3.14
     ventas = VentasConsulta.objects.filter(
-        fecha__gte=fecha_inicio,
-        fecha__lte=fecha_fin
+        fecha__gte=fecha_a_iso(fecha_inicio),
+        fecha__lte=fecha_a_iso(fecha_fin)
     ).values('codigo_producto', 'categoria', 'producto').annotate(
         total_cantidad=Sum('cantidad'),
         total_venta=Sum('total_venta'),
@@ -2212,22 +2252,23 @@ def inventario_tiendas(request):
         ini = InventarioInicial.objects.filter(sku=obj.sku).first()
         inicial = ini.stock if ini else 0
         
+        # Usar fecha_a_iso para compatibilidad con Python 3.14
         ingresos = EntradaProductos.objects.filter(
             sku__sku=obj.sku,
-            fecha__gte=fecha_inicio,
-            fecha__lte=fecha_fin
+            fecha__gte=fecha_a_iso(fecha_inicio),
+            fecha__lte=fecha_a_iso(fecha_fin)
         ).aggregate(total=models.Sum('cantidad_ingresada'))['total'] or 0
         
         ventas = Ventas.objects.filter(
             sku__sku=obj.sku,
-            fecha__gte=fecha_inicio,
-            fecha__lte=fecha_fin
+            fecha__gte=fecha_a_iso(fecha_inicio),
+            fecha__lte=fecha_a_iso(fecha_fin)
         ).aggregate(total=models.Sum('cantidad'))['total'] or 0
         
         ajustes = AjusteInventario.objects.filter(
             sku__sku=obj.sku,
-            fecha__gte=fecha_inicio,
-            fecha__lte=fecha_fin
+            fecha__gte=fecha_a_iso(fecha_inicio),
+            fecha__lte=fecha_a_iso(fecha_fin)
         ).aggregate(total=models.Sum('cantidad'))['total'] or 0
         
         # Stock disponible
@@ -2297,16 +2338,17 @@ def movimientos_cuenta(request):
     movimientos_credito = []
     
     if cuenta:
+        # Usar fecha_a_iso para compatibilidad con Python 3.14
         movimientos_debito = MovimientoUnificadoDebito.objects.filter(
             cta_debito=cuenta,
-            fecha__gte=fecha_inicio,
-            fecha__lte=fecha_fin
+            fecha__gte=fecha_a_iso(fecha_inicio),
+            fecha__lte=fecha_a_iso(fecha_fin)
         ).order_by('fecha')
         
         movimientos_credito = MovimientoUnificadoCredito.objects.filter(
             cta_credito=cuenta,
-            fecha__gte=fecha_inicio,
-            fecha__lte=fecha_fin
+            fecha__gte=fecha_a_iso(fecha_inicio),
+            fecha__lte=fecha_a_iso(fecha_fin)
         ).order_by('fecha')
     
     return render(request, 'boran_app/movimientos_cuenta.html', {
@@ -2342,12 +2384,13 @@ def movimientos_por_fecha(request):
                     continue
             
             if fecha_dt:
+                # Usar fecha_a_iso para compatibilidad con Python 3.14
                 movimientos_debito = MovimientoUnificadoDebito.objects.filter(
-                    fecha=fecha_dt
+                    fecha=fecha_a_iso(fecha_dt)
                 ).order_by('cta_debito')
                 
                 movimientos_credito = MovimientoUnificadoCredito.objects.filter(
-                    fecha=fecha_dt
+                    fecha=fecha_a_iso(fecha_dt)
                 ).order_by('cta_credito')
         except Exception:
             pass
@@ -2388,14 +2431,15 @@ def movimientos_por_rango(request):
         hasta_dt = parse_fecha(hasta_str)
         
         if desde_dt and hasta_dt:
+            # Usar fecha_a_iso para compatibilidad con Python 3.14
             movimientos_debito = MovimientoUnificadoDebito.objects.filter(
-                fecha__gte=desde_dt,
-                fecha__lte=hasta_dt
+                fecha__gte=fecha_a_iso(desde_dt),
+                fecha__lte=fecha_a_iso(hasta_dt)
             ).order_by('fecha', 'cta_debito')
             
             movimientos_credito = MovimientoUnificadoCredito.objects.filter(
-                fecha__gte=desde_dt,
-                fecha__lte=hasta_dt
+                fecha__gte=fecha_a_iso(desde_dt),
+                fecha__lte=fecha_a_iso(hasta_dt)
             ).order_by('fecha', 'cta_credito')
     
     # Calcular totales
